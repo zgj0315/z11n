@@ -30,7 +30,6 @@ pub async fn build_client(
 }
 
 fn intercept(mut req: Request<()>) -> Result<Request<()>, Status> {
-    log::info!("Intercepting request: {req:?}");
     req.metadata_mut()
         .insert("agent_id", "aabbccdd".parse().unwrap());
     req.metadata_mut()
