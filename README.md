@@ -46,3 +46,4 @@ sea-orm 操作 tbl_agent
 - 制作 TLS 证书
 - gRPC 服务端模块（proto文件费了些功夫）
 - gRPC 客户端模块（客户端认证证书波折了一些）
+- 通过 Interceptor 操作 Header 中的 agent_id, agent_version, token
