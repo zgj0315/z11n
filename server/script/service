@@ -1,0 +1,93 @@
+#!/bin/bash
+# Created by zhaogj on 20240528
+set -o errexit
+# set -x
+
+[ "${USER}" == "root" ] && echo "user must not be root" && exit 1
+
+# 获取脚本的完整路径, eg: /home/zhaogj/xxx_service/bin/service
+SCRIPT_PATH=$(realpath "$0")
+
+# 获取脚本所在的目录, eg: /home/zhaogj/xxx_service/bin
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+
+# 获取脚本所在目录的上级目录, eg: /home/zhaogj/xxx_service
+PARENT_DIR=$(dirname "$SCRIPT_DIR")
+
+# 获取上级目录的目录名
+PARENT_DIR_NAME=$(basename "$PARENT_DIR")
+
+BIN_FILE="./bin/${PARENT_DIR_NAME}"
+PID_FILE="./service.pid"
+
+cd $PARENT_DIR
+
+status() {
+  if [ $(ps -ef | grep ${BIN_FILE} | grep -v grep | wc -l) -ge 1 ]; then
+    echo "Running"
+  else
+    echo "Stopped"
+  fi
+}
+stop() {
+  if [ $(ps -ef | grep ${BIN_FILE} | grep -v grep | wc -l) -ge 1 ]; then
+    counter=1
+    while [ $counter -lt 10 ]; do
+      if [ $(ps -ef | grep ${BIN_FILE} | grep -v grep | wc -l) -ge 1 ]; then
+        #kill -9 "$(cat "${PID_FILE}")"
+        ps -ef | grep ${BIN_FILE} | grep -v grep | awk '{print $2}' | xargs kill -9
+        rm $PID_FILE
+        echo "Stopping ${BIN_FILE}"
+      else
+        break
+      fi
+      sleep 1
+      ((counter++))
+    done
+    echo "Stopped ${BIN_FILE}"
+  else
+    echo "Not Running"
+  fi
+}
+start() {
+  if [ $(ps -ef | grep ${BIN_FILE} | grep -v grep | wc -l) -eq 0 ]; then
+    counter=1
+    while [ $counter -lt 10 ]; do
+      if [ $(ps -ef | grep ${BIN_FILE} | grep -v grep | wc -l) -ge 1 ]; then
+        echo "Started ${BIN_FILE}"
+        break
+      else
+        nohup "$BIN_FILE" >>log/service.log 2>&1 &
+        echo $! >$PID_FILE
+        echo "Starting ${BIN_FILE}"
+      fi
+      sleep 1
+      ((counter++))
+    done
+  else
+    echo "Running"
+  fi
+}
+
+restart() {
+  stop
+  start
+}
+
+case $1 in
+start)
+  start
+  ;;
+stop)
+  stop
+  ;;
+restart)
+  restart
+  ;;
+status)
+  status
+  ;;
+*)
+  echo "Input error, eg: ${0} [start | stop | restart | status]"
+  ;;
+esac

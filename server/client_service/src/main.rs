@@ -1,9 +1,15 @@
 use client_service::{
+    agent,
     config::CLIENT_SERVICE_TOML,
     proto::z11n_service_server::Z11nServiceServer,
     server::{Z11nInterceptor, Z11nServer},
 };
-use std::fs;
+use migration::{Migrator, MigratorTrait};
+use sea_orm::Database;
+use std::{
+    fs::{self, File},
+    path::Path,
+};
 use tonic::{
     codec::CompressionEncoding,
     service::interceptor::InterceptedService,
@@ -14,7 +20,30 @@ use tonic::{
 async fn main() -> anyhow::Result<()> {
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
     log::info!("client service starting");
-    let server = Z11nServer::default();
+    let db_dir = Path::new("./data");
+    if !db_dir.exists() {
+        fs::create_dir_all(db_dir)?;
+        log::info!("create dir: {}", db_dir.to_string_lossy());
+    }
+
+    let db_path = db_dir.join("z11n.sqlite");
+    if !db_path.exists() {
+        File::create(&db_path)?;
+        log::info!("create file: {}", db_path.to_string_lossy());
+    }
+
+    let db_url = format!("sqlite://{}", db_path.to_string_lossy());
+    let db_conn = Database::connect(&db_url).await?;
+    log::info!("connect to {}", db_url);
+
+    Migrator::up(&db_conn, None).await?;
+
+    let online_agent_cache = agent::init_cache(&db_conn).await?;
+
+    let server = Z11nServer {
+        db_conn,
+        online_agent_cache,
+    };
     let service = Z11nServiceServer::new(server)
         .send_compressed(CompressionEncoding::Gzip)
         .accept_compressed(CompressionEncoding::Gzip)

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -o errexit
+set -x
+cd "$(dirname "${0}")"
+cd ../
+
+docker run \
+    --rm \
+    --name "postgres-12" \
+    --env POSTGRES_DB="zhaogj_db" \
+    --env POSTGRES_USER="zhaogj_user" \
+    --env POSTGRES_PASSWORD="zhaogj_password" \
+    -d -p 5432:5432 postgres:12
+
+sleep 5
+
+cargo run \
+    --manifest-path migration/Cargo.toml \
+    -- refresh \
+    -u postgres://zhaogj_user:zhaogj_password@127.0.0.1:5432/zhaogj_db
+
+sea-orm-cli generate entity --with-serde both \
+    -u postgres://zhaogj_user:zhaogj_password@127.0.0.1:5432/zhaogj_db \
+    -l \
+    -o entity/src
+
+docker stop "postgres-12"

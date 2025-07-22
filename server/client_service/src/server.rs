@@ -1,6 +1,9 @@
 use crate::proto::{
     HeartbeatReq, HeartbeatRsp, RegisterReq, RegisterRsp, z11n_service_server::Z11nService,
 };
+use chrono::{DateTime, Utc};
+use moka::sync::Cache;
+use sea_orm::DatabaseConnection;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Code, Request, Response, Status, metadata::MetadataMap, service::Interceptor};
@@ -45,8 +48,11 @@ fn extract_metadata_value<'a>(metadata: &'a MetadataMap, key: &str) -> Result<&'
     }
 }
 
-#[derive(Debug, Default)]
-pub struct Z11nServer {}
+#[derive(Debug)]
+pub struct Z11nServer {
+    pub db_conn: DatabaseConnection,
+    pub online_agent_cache: Cache<String, DateTime<Utc>>,
+}
 
 #[tonic::async_trait]
 impl Z11nService for Z11nServer {

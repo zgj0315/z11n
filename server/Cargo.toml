@@ -4,4 +4,7 @@ resolver = "2"
 members = [
   "client_service",
   "ui_service",
+  "migration",
+  "entity",
+  "pub_lib",
 ]
