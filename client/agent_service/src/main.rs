@@ -1,5 +1,6 @@
 use agent_service::{config::AGENT_SERVICE_TOML, proto::HeartbeatReq};
 use rustls::crypto::{CryptoProvider, ring};
+use tokio_stream::StreamExt;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -14,6 +15,22 @@ async fn main() -> anyhow::Result<()> {
         agent_type: "".to_string(),
     };
     let rsp = client.heartbeat(req).await?;
-    log::info!("{:?}", rsp);
+    let mut stream = rsp.into_inner();
+    loop {
+        match stream.next().await {
+            Some(v) => match v {
+                Ok(heartbeat_rsp) => {
+                    log::info!("heartbeat_rsp: {heartbeat_rsp:?}");
+                }
+                Err(e) => {
+                    log::error!("stream {}", e);
+                    break;
+                }
+            },
+            None => {
+                break;
+            }
+        }
+    }
     Ok(())
 }

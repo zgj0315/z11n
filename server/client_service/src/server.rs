@@ -1,65 +1,46 @@
 use crate::proto::{HeartbeatReq, HeartbeatRsp, z11n_service_server::Z11nService};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::{Request, Response, Status, service::Interceptor};
+use tonic::{Code, Request, Response, Status, metadata::MetadataMap, service::Interceptor};
 
 #[derive(Debug, Clone)]
 pub struct Z11nInterceptor {}
 
 impl Interceptor for Z11nInterceptor {
     fn call(&mut self, req: tonic::Request<()>) -> Result<tonic::Request<()>, Status> {
-        // // 出于性能考虑，这里尽可能少干活
-        // match req.metadata().get("agent_id") {
-        //     Some(v) => {
-        //         if v.is_empty() {
-        //             log::warn!("agent_id is empty");
-        //             return Err(tonic::Status::new(
-        //                 tonic::Code::Internal,
-        //                 "agent_id is empty",
-        //             ));
-        //         }
-        //         if let Err(e) = v.to_str() {
-        //             log::warn!("agent_id to_str err: {}", e);
-        //             return Err(tonic::Status::new(
-        //                 tonic::Code::Internal,
-        //                 "agent_id to_str err",
-        //             ));
-        //         }
-        //     }
-        //     None => {
-        //         log::warn!("agent_id not exist");
-        //         return Err(tonic::Status::new(
-        //             tonic::Code::Internal,
-        //             "agent_id not exist",
-        //         ));
-        //     }
-        // }
-        // match req.metadata().get("agent_version") {
-        //     Some(v) => {
-        //         if v.is_empty() {
-        //             log::warn!("agent_version is empty");
-        //             return Err(tonic::Status::new(
-        //                 tonic::Code::Internal,
-        //                 "agent_version is empty",
-        //             ));
-        //         }
-        //         if let Err(e) = v.to_str() {
-        //             log::warn!("agent_version to_str err: {}", e);
-        //             return Err(tonic::Status::new(
-        //                 tonic::Code::Internal,
-        //                 "agent_version to_str err",
-        //             ));
-        //         }
-        //     }
-        //     None => {
-        //         log::warn!("agent_version not exist");
-        //         return Err(tonic::Status::new(
-        //             tonic::Code::Internal,
-        //             "agent_version not exist",
-        //         ));
-        //     }
-        // };
+        let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
+        let agent_version = extract_metadata_value(req.metadata(), "agent_version")?;
+        let token = extract_metadata_value(req.metadata(), "token")?;
+        log::info!("agent_id: {agent_id}, agent_version: {agent_version}, token: {token}");
         Ok(req)
+    }
+}
+
+fn extract_metadata_value<'a>(metadata: &'a MetadataMap, key: &str) -> Result<&'a str, Status> {
+    match metadata.get(key) {
+        Some(v) => {
+            if v.is_empty() {
+                log::warn!("{} is empty", key);
+                return Err(Status::new(
+                    Code::InvalidArgument,
+                    format!("{} is empty", key),
+                ));
+            }
+            match v.to_str() {
+                Ok(val) => Ok(val),
+                Err(e) => {
+                    log::error!("{} to_str error: {}", key, e);
+                    Err(Status::new(Code::Internal, format!("{} to_str error", key)))
+                }
+            }
+        }
+        None => {
+            log::warn!("{} not exist", key);
+            Err(Status::new(
+                Code::InvalidArgument,
+                format!("{} not exist", key),
+            ))
+        }
     }
 }
 

@@ -1,13 +1,19 @@
 use crate::proto::z11n_service_client::Z11nServiceClient;
 use std::fs;
-use tonic::transport::{Certificate, Channel, ClientTlsConfig};
+use tonic::{
+    Request, Status,
+    service::{Interceptor, interceptor::InterceptedService},
+    transport::{Certificate, Channel, ClientTlsConfig},
+};
 
 pub mod proto {
     tonic::include_proto!("z11n");
 }
 pub mod config;
 
-pub async fn build_client(url: &'static str) -> anyhow::Result<Z11nServiceClient<Channel>> {
+pub async fn build_client(
+    url: &'static str,
+) -> anyhow::Result<Z11nServiceClient<InterceptedService<Channel, impl Interceptor>>> {
     let mut pem = Vec::new();
     pem.extend_from_slice(&fs::read("./config/z11n-ca.crt")?);
     pem.extend_from_slice(&fs::read("./config/sub-ca.crt")?);
@@ -16,5 +22,20 @@ pub async fn build_client(url: &'static str) -> anyhow::Result<Z11nServiceClient
         .ca_certificate(ca)
         .domain_name("z11n.com");
     let channel = Channel::from_static(url).tls_config(tls)?.connect().await?;
-    Ok(Z11nServiceClient::new(channel))
+
+    Ok(Z11nServiceClient::with_interceptor(
+        channel.clone(),
+        intercept,
+    ))
+}
+
+fn intercept(mut req: Request<()>) -> Result<Request<()>, Status> {
+    log::info!("Intercepting request: {req:?}");
+    req.metadata_mut()
+        .insert("agent_id", "aabbccdd".parse().unwrap());
+    req.metadata_mut()
+        .insert("agent_version", "0.7.0".parse().unwrap());
+    req.metadata_mut()
+        .insert("token", "11223344".parse().unwrap());
+    Ok(req)
 }
