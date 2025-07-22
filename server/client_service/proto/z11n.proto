@@ -10,8 +10,8 @@ service Z11nService {
 message HeartbeatReq {
     // agent唯一编号，必填
     string agent_id = 1;
-    // agent类型，必填
-    string agent_type = 2;
+    // agent版本，必填
+    string agent_version = 2;
 }
 
 message HeartbeatRsp {
@@ -32,8 +32,8 @@ message HeartbeatRsp {
 message RegisterReq {
     // agent唯一编号，必填
     string agent_id = 1;
-    // agent类型，必填
-    string agent_type = 2;
+    // agent版本，必填
+    string agent_version = 2;
 }
 
 // 心跳消息请求结构体

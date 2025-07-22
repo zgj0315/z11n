@@ -11,9 +11,10 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(TblAgent::Table)
                     .if_not_exists()
-                    .col(string(TblAgent::AgentId).primary_key())
-                    .col(string(TblAgent::AgentVersion))
+                    .col(string(TblAgent::Id).primary_key())
+                    .col(string(TblAgent::Version))
                     .col(string(TblAgent::State))
+                    .col(string(TblAgent::Token))
                     .col(date_time(TblAgent::CreatedAt).default(Expr::current_timestamp()))
                     .to_owned(),
             )
@@ -30,8 +31,9 @@ impl MigrationTrait for Migration {
 #[derive(DeriveIden)]
 enum TblAgent {
     Table,
-    AgentId,
-    AgentVersion,
+    Id,
+    Version,
     State,
+    Token,
     CreatedAt,
 }

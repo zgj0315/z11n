@@ -1,6 +1,4 @@
-use std::{sync::Arc, time::Duration};
-
-use chrono::{DateTime, Utc};
+use crate::config::CLIENT_SERVICE_TOML;
 use entity::tbl_agent;
 use moka::{notification::RemovalCause, sync::Cache};
 use pub_lib::AgentState;
@@ -8,14 +6,13 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter,
     QuerySelect, prelude::Expr,
 };
-
-use crate::config::CLIENT_SERVICE_TOML;
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 pub async fn init_cache(
     db_conn: &sea_orm::DatabaseConnection,
-) -> anyhow::Result<Cache<String, DateTime<Utc>>> {
+) -> anyhow::Result<Cache<String, String>> {
     let db_conn_clone = db_conn.clone();
-    let eviction_listener = move |agent_id: Arc<String>, _dt: DateTime<Utc>, removal_cause| {
+    let eviction_listener = move |agent_id: Arc<String>, _token: String, removal_cause| {
         let db_conn_clone = db_conn_clone.clone();
         match removal_cause {
             RemovalCause::Expired => {
@@ -50,7 +47,7 @@ pub async fn init_cache(
 
 async fn agent_offline(agent_id: &str, db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<()> {
     if let Some(tbl_agent) = tbl_agent::Entity::find()
-        .filter(tbl_agent::Column::AgentId.eq(agent_id))
+        .filter(tbl_agent::Column::Id.eq(agent_id))
         .one(&db_conn)
         .await?
     {
@@ -67,7 +64,7 @@ async fn agent_offline(agent_id: &str, db_conn: sea_orm::DatabaseConnection) -> 
 
 async fn sync_pg_and_cache_task(
     db_conn: sea_orm::DatabaseConnection,
-    cache: Cache<String, DateTime<Utc>>,
+    cache: Cache<String, String>,
 ) -> anyhow::Result<()> {
     // 将pg中的在线主机load到内存，然后启动任务
     sync_pg_and_cache(db_conn.clone(), cache.clone()).await?;
@@ -85,31 +82,34 @@ async fn sync_pg_and_cache_task(
 
 async fn sync_pg_and_cache(
     db_conn: sea_orm::DatabaseConnection,
-    cache: Cache<String, DateTime<Utc>>,
+    cache: Cache<String, String>,
 ) -> anyhow::Result<()> {
     log::info!("sync_db_and_cache begin");
-    if let Ok(agent_ids) = tbl_agent::Entity::find()
+    if let Ok(agent_id_tokens) = tbl_agent::Entity::find()
         .select_only()
-        .column(tbl_agent::Column::AgentId)
+        .column(tbl_agent::Column::Id)
+        .column(tbl_agent::Column::Token)
         .filter(tbl_agent::Column::State.eq(AgentState::Online.to_string()))
-        .into_tuple::<String>()
+        .into_tuple::<(String, String)>()
         .all(&db_conn)
         .await
     {
-        for agent_id in &agent_ids {
+        let mut agent_id_set = HashSet::new();
+        for (agent_id, token) in &agent_id_tokens {
+            agent_id_set.insert(agent_id.clone());
             if !cache.contains_key(agent_id) {
-                cache.insert(agent_id.to_string(), chrono::Utc::now());
+                cache.insert(agent_id.to_string(), token.clone());
                 log::info!("{} online in cache", agent_id);
             }
         }
         for (agent_id, _) in cache.iter() {
-            if !agent_ids.contains(&agent_id) {
+            if !agent_id_set.contains(agent_id.as_str()) {
                 tbl_agent::Entity::update_many()
                     .col_expr(
                         tbl_agent::Column::State,
                         Expr::value(AgentState::Online.to_string()),
                     )
-                    .filter(tbl_agent::Column::AgentId.eq(agent_id.as_str()))
+                    .filter(tbl_agent::Column::Id.eq(agent_id.as_str()))
                     .exec(&db_conn)
                     .await?;
                 log::info!("{} online in db by sync_pg_and_cache", agent_id);

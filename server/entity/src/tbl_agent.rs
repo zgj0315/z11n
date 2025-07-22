@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 #[sea_orm(table_name = "tbl_agent")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub agent_id: String,
-    pub agent_version: String,
+    pub id: String,
+    pub version: String,
     pub state: String,
+    pub token: String,
     pub created_at: DateTime,
 }
 
