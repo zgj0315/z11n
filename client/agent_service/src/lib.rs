@@ -1,4 +1,6 @@
 use crate::proto::z11n_service_client::Z11nServiceClient;
+use once_cell::sync::OnceCell;
+use parking_lot::RwLock;
 use std::fs;
 use tonic::{
     Request, Status,
@@ -29,10 +31,16 @@ pub async fn build_client(
     ))
 }
 
+static AGENT_ID_TOKEN: OnceCell<RwLock<(String, String)>> = OnceCell::new();
+
 fn intercept(mut req: Request<()>) -> Result<Request<()>, Status> {
-    req.metadata_mut()
-        .insert("agent_id", "aabbccdd".parse().unwrap());
-    req.metadata_mut()
-        .insert("token", "11223344".parse().unwrap());
+    if let Some(agent_id_token) = AGENT_ID_TOKEN.get() {
+        let agent_id_token = agent_id_token.read();
+        let agent_id = &agent_id_token.0;
+        let token = &agent_id_token.1;
+        req.metadata_mut()
+            .insert("agent_id", agent_id.parse().unwrap());
+        req.metadata_mut().insert("token", token.parse().unwrap());
+    };
     Ok(req)
 }

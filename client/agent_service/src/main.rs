@@ -1,4 +1,7 @@
-use agent_service::{config::AGENT_SERVICE_TOML, proto::HeartbeatReq};
+use agent_service::{
+    config::AGENT_SERVICE_TOML,
+    proto::{HeartbeatReq, RegisterReq},
+};
 use rustls::crypto::{CryptoProvider, ring};
 use tokio_stream::StreamExt;
 
@@ -10,6 +13,16 @@ async fn main() -> anyhow::Result<()> {
         .expect("failed to install CryptoProvider");
 
     let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
+
+    let agent_id = uuid::Uuid::new_v4().to_string();
+    let register_req = RegisterReq {
+        agent_id: agent_id.clone(),
+        agent_version: "0.1.0".to_string(),
+    };
+    let register_rsp = client.register(register_req).await?;
+    let _token = register_rsp.get_ref().token.clone();
+
+    // AGENT_ID_TOKEN.set((agent_id, token));
 
     let req = HeartbeatReq {};
     let rsp = client.heartbeat(req).await?;
