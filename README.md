@@ -40,6 +40,10 @@ sea-orm 操作 tbl_agent
 - [X] 封装一个数据库(sql + kv)操作中间件，将数据库操作收口（这不是好办法，会导致工作量增加）
 
 ## 4 开发备忘录
+### 20250723
+- agent register
+- migration and entity init
+- agent online cache
 ### 20250722
 - 启动项目，设计文档
 - 设计工程结构
