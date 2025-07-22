@@ -8,7 +8,9 @@ pub mod proto {
 pub mod config;
 
 pub async fn build_client(url: &'static str) -> anyhow::Result<Z11nServiceClient<Channel>> {
-    let pem = fs::read("./config/z11n-ca.crt")?;
+    let mut pem = Vec::new();
+    pem.extend_from_slice(&fs::read("./config/z11n-ca.crt")?);
+    pem.extend_from_slice(&fs::read("./config/sub-ca.crt")?);
     let ca = Certificate::from_pem(pem);
     let tls = ClientTlsConfig::new()
         .ca_certificate(ca)
