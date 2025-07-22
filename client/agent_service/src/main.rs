@@ -10,10 +10,8 @@ async fn main() -> anyhow::Result<()> {
         .expect("failed to install CryptoProvider");
 
     let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
-    let req = HeartbeatReq {
-        agent_id: "".to_string(),
-        agent_type: "".to_string(),
-    };
+
+    let req = HeartbeatReq {};
     let rsp = client.heartbeat(req).await?;
     let mut stream = rsp.into_inner();
     loop {

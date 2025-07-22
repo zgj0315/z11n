@@ -82,13 +82,8 @@ impl Z11nService for Z11nServer {
             }
         }
         let (tx, rx) = mpsc::channel(10);
-        let heartbeat_req = req.into_inner();
-        log::info!("heartbeat_req: {:?}", heartbeat_req);
-        let cmd_content = format!(
-            "agent_id: {}, agent_version: {}",
-            heartbeat_req.agent_id.to_owned(),
-            heartbeat_req.agent_version.to_owned()
-        );
+
+        let cmd_content = format!("agent_id: {}, token: {}", agent_id, token);
         tokio::spawn(async move {
             for i in 0..2 {
                 let response = HeartbeatRsp {

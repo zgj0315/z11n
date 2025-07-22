@@ -8,10 +8,6 @@ service Z11nService {
 
 // 心跳消息请求结构体
 message HeartbeatReq {
-    // agent唯一编号，必填
-    string agent_id = 1;
-    // agent版本，必填
-    string agent_version = 2;
 }
 
 message HeartbeatRsp {

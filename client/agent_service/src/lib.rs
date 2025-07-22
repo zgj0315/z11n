@@ -33,8 +33,6 @@ fn intercept(mut req: Request<()>) -> Result<Request<()>, Status> {
     req.metadata_mut()
         .insert("agent_id", "aabbccdd".parse().unwrap());
     req.metadata_mut()
-        .insert("agent_version", "0.7.0".parse().unwrap());
-    req.metadata_mut()
         .insert("token", "11223344".parse().unwrap());
     Ok(req)
 }
