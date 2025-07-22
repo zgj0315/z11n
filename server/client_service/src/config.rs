@@ -13,9 +13,16 @@ pub static CLIENT_SERVICE_TOML: Lazy<ServerToml> = Lazy::new(|| {
 #[derive(Debug, Deserialize)]
 pub struct ServerToml {
     pub server: Server,
+    pub agent: Agent,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Server {
     pub addr: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Agent {
+    pub heartbeat_delay: i32,
+    pub offline_ex: i64,
 }

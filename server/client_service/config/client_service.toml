@@ -1,2 +1,8 @@
 [server]
 addr = "0.0.0.0:2024"
+
+[agent]
+# 心跳间隔
+heartbeat_delay = 10
+# 下线窗口
+offline_ex = 30
