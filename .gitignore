@@ -1,5 +1,5 @@
-.DS_Store
-server/target
-server/Cargo.lock
+*/*/.DS_Store
+*/target
+*/Cargo.lock
 ca_maker/home-ca
-server/client_service/log
+*/*/log
