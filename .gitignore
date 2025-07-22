@@ -1,1 +1,5 @@
 .DS_Store
+server/target
+server/Cargo.lock
+ca_maker/home-ca
+server/client_service/log
