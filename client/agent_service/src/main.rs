@@ -1,7 +1,9 @@
 use agent_service::{
+    AGENT_ID_TOKEN,
     config::AGENT_SERVICE_TOML,
     proto::{HeartbeatReq, RegisterReq},
 };
+use parking_lot::RwLock;
 use rustls::crypto::{CryptoProvider, ring};
 use tokio_stream::StreamExt;
 
@@ -15,14 +17,20 @@ async fn main() -> anyhow::Result<()> {
     let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
 
     let agent_id = uuid::Uuid::new_v4().to_string();
+    if let Err(e) = AGENT_ID_TOKEN.set(RwLock::new((agent_id.clone(), "".to_string()))) {
+        log::error!("AGENT_ID_TOKEN set err: {:?}", e);
+    }
     let register_req = RegisterReq {
         agent_id: agent_id.clone(),
         agent_version: "0.1.0".to_string(),
     };
     let register_rsp = client.register(register_req).await?;
-    let _token = register_rsp.get_ref().token.clone();
+    let token = register_rsp.get_ref().token.clone();
 
-    // AGENT_ID_TOKEN.set((agent_id, token));
+    if let Some(lock) = AGENT_ID_TOKEN.get() {
+        let mut write = lock.write();
+        *write = (agent_id, token);
+    }
 
     let req = HeartbeatReq {};
     let rsp = client.heartbeat(req).await?;

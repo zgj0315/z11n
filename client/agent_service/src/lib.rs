@@ -31,7 +31,7 @@ pub async fn build_client(
     ))
 }
 
-static AGENT_ID_TOKEN: OnceCell<RwLock<(String, String)>> = OnceCell::new();
+pub static AGENT_ID_TOKEN: OnceCell<RwLock<(String, String)>> = OnceCell::new();
 
 fn intercept(mut req: Request<()>) -> Result<Request<()>, Status> {
     if let Some(agent_id_token) = AGENT_ID_TOKEN.get() {
