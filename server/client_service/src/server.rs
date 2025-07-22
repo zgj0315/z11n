@@ -1,4 +1,6 @@
-use crate::proto::{HeartbeatReq, HeartbeatRsp, z11n_service_server::Z11nService};
+use crate::proto::{
+    HeartbeatReq, HeartbeatRsp, RegisterReq, RegisterRsp, z11n_service_server::Z11nService,
+};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Code, Request, Response, Status, metadata::MetadataMap, service::Interceptor};
@@ -10,8 +12,7 @@ impl Interceptor for Z11nInterceptor {
     fn call(&mut self, req: tonic::Request<()>) -> Result<tonic::Request<()>, Status> {
         let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
         let agent_version = extract_metadata_value(req.metadata(), "agent_version")?;
-        let token = extract_metadata_value(req.metadata(), "token")?;
-        log::info!("agent_id: {agent_id}, agent_version: {agent_version}, token: {token}");
+        log::info!("agent_id: {agent_id}, agent_version: {agent_version}");
         Ok(req)
     }
 }
@@ -52,10 +53,11 @@ impl Z11nService for Z11nServer {
     type HeartbeatStream = ReceiverStream<Result<HeartbeatRsp, Status>>;
     async fn heartbeat(
         &self,
-        request: Request<HeartbeatReq>,
+        req: Request<HeartbeatReq>,
     ) -> Result<Response<Self::HeartbeatStream>, Status> {
+        let token = extract_metadata_value(req.metadata(), "token")?;
         let (tx, rx) = mpsc::channel(10);
-        let heartbeat_req = request.into_inner();
+        let heartbeat_req = req.into_inner();
         log::info!("heartbeat_req: {:?}", heartbeat_req);
         let cmd_content = format!(
             "agent_id: {}, agent_type: {}",
@@ -74,5 +76,11 @@ impl Z11nService for Z11nServer {
             }
         });
         Ok(Response::new(ReceiverStream::new(rx)))
+    }
+
+    async fn register(&self, req: Request<RegisterReq>) -> Result<Response<RegisterRsp>, Status> {
+        let token = uuid::Uuid::new_v4().to_string();
+        let register_rsp = RegisterRsp { token };
+        Ok(Response::new(register_rsp))
     }
 }

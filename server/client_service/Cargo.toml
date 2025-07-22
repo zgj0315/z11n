@@ -26,6 +26,7 @@ tokio = {version = "1.46.1", features = [
 ]}
 tokio-stream = "0.1.17"
 tonic = {version = "0.13.1", features = ["tls-ring", "gzip"]}
+uuid = {version = "1.17.0", features = ["v4"]}
 
 [build-dependencies]
 anyhow = "1.0.98"

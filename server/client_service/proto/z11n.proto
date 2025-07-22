@@ -3,6 +3,7 @@ package z11n;
 
 service Z11nService {
     rpc Heartbeat(HeartbeatReq) returns (stream HeartbeatRsp) {}
+    rpc Register(RegisterReq) returns (RegisterRsp) {}
 }
 
 // 心跳消息请求结构体
@@ -25,4 +26,18 @@ message HeartbeatRsp {
     CmdType cmd_type = 1;
     // 指令内容
     string cmd_content = 2;
+}
+
+// 心跳消息请求结构体
+message RegisterReq {
+    // agent唯一编号，必填
+    string agent_id = 1;
+    // agent类型，必填
+    string agent_type = 2;
+}
+
+// 心跳消息请求结构体
+message RegisterRsp {
+    // 认证token
+    string token = 1;
 }
