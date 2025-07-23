@@ -65,3 +65,22 @@ sea-orm 操作 tbl_agent
 - [x] gRPC 服务端模块（proto文件费了些功夫）
 - [x] gRPC 客户端模块（客户端认证证书波折了一些）
 - [x] 通过 Interceptor 操作 Header 中的 agent_id, agent_version, token
+
+## 5 调试说明
+```
+# 启动客户端接收模块
+cd server/client_service
+cargo watch -x run
+
+# 启动客户端发送模块
+cd client/agent_service
+cargo run
+
+# 启动 RESTful API 模块
+cd server/ui_service
+cargo watch -x run
+
+# 启动前端模块
+cd server/ui_web
+npm run dev
+```
