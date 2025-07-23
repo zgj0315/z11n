@@ -20,8 +20,7 @@ type Page = {
 
 const App: React.FC = () => {
   const navigate = useNavigate();
-
-  const [articles, setArticles] = useState<[]>([]);
+  const [agents, setAgents] = useState<[]>([]);
   const [current, setCurrent] = useState(1);
   const [page_size, setPageSize] = useState(5);
   const [page, setPage] = useState<Page>();
@@ -103,7 +102,7 @@ const App: React.FC = () => {
       const response = await restful_api.get(
         `/api/agents?${params.toString()}`
       );
-      setArticles(response.data._embedded?.agent);
+      setAgents(response.data._embedded?.agent);
       setPage(response.data.page);
       setCurrent(page);
       setPageSize(size);
@@ -118,7 +117,7 @@ const App: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await restful_api.delete(`/api/pdf_articles/${id}`);
+      await restful_api.delete(`/api/agents/${id}`);
       message.success("删除成功");
       handleQuery();
     } catch (error) {
@@ -156,10 +155,7 @@ const App: React.FC = () => {
       key: "action",
       render: (_: unknown, record: Article) => (
         <>
-          <Button
-            type="link"
-            onClick={() => navigate(`/pdf_articles/${record.id}`)}
-          >
+          <Button type="link" onClick={() => navigate(`/agents/${record.id}`)}>
             查看
           </Button>
           {isLoggedIn && (
@@ -217,7 +213,7 @@ const App: React.FC = () => {
       </Form>
 
       <Table
-        dataSource={articles}
+        dataSource={agents}
         columns={columns}
         rowKey="id"
         loading={loading}

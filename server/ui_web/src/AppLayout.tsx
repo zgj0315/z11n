@@ -20,24 +20,9 @@ const App: React.FC = () => {
 
   const menuItems = [
     {
-      key: "/home",
+      key: "/agents",
       icon: <UserOutlined />,
-      label: "首页",
-    },
-    {
-      key: "/pdf_articles",
-      icon: <UserOutlined />,
-      label: "文章列表",
-    },
-    {
-      key: "/articles",
-      icon: <UserOutlined />,
-      label: "文章管理",
-    },
-    {
-      key: "/files",
-      icon: <UploadOutlined />,
-      label: "文件管理",
+      label: "Agent管理",
     },
   ];
   const isLoggedIn = !!localStorage.getItem("token");
@@ -95,7 +80,7 @@ const App: React.FC = () => {
         </Sider>
         <Layout style={{ padding: "0 24px 24px" }}>
           <Breadcrumb
-            items={[{ title: "Home" }, { title: "List" }, { title: "Article" }]}
+            items={[{ title: "Home" }, { title: "Agent" }]}
             style={{ margin: "16px 0" }}
           />
           <Content
