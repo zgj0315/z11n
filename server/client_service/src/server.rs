@@ -1,5 +1,5 @@
 use crate::proto::{
-    HeartbeatReq, HeartbeatRsp, RegisterReq, RegisterRsp, z11n_service_server::Z11nService,
+    Empty, HeartbeatRsp, HostReq, RegisterReq, RegisterRsp, z11n_service_server::Z11nService,
 };
 use entity::tbl_agent;
 use moka::sync::Cache;
@@ -61,7 +61,7 @@ impl Z11nService for Z11nServer {
     type HeartbeatStream = ReceiverStream<Result<HeartbeatRsp, Status>>;
     async fn heartbeat(
         &self,
-        req: Request<HeartbeatReq>,
+        req: Request<Empty>,
     ) -> Result<Response<Self::HeartbeatStream>, Status> {
         let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
         let token = extract_metadata_value(req.metadata(), "token")?;
@@ -153,5 +153,11 @@ impl Z11nService for Z11nServer {
 
         let register_rsp = RegisterRsp { token };
         Ok(Response::new(register_rsp))
+    }
+
+    async fn host(&self, req: Request<HostReq>) -> Result<Response<Empty>, Status> {
+        let host_req = req.get_ref();
+
+        Ok(Response::new(Empty {}))
     }
 }

@@ -12,6 +12,7 @@ pub mod proto {
     tonic::include_proto!("z11n");
 }
 pub mod config;
+pub mod host;
 
 pub async fn build_client(
     url: &'static str,

@@ -2,13 +2,12 @@ syntax = "proto3";
 package z11n;
 
 service Z11nService {
-    rpc Heartbeat(HeartbeatReq) returns (stream HeartbeatRsp) {}
+    rpc Heartbeat(Empty) returns (stream HeartbeatRsp) {}
     rpc Register(RegisterReq) returns (RegisterRsp) {}
+    rpc Host(HostReq) returns (Empty) {}
 }
 
-// 心跳消息请求结构体
-message HeartbeatReq {
-}
+message Empty {}
 
 message HeartbeatRsp {
     // 指令类型枚举
@@ -36,4 +35,19 @@ message RegisterReq {
 message RegisterRsp {
     // 认证token
     string token = 1;
+}
+
+message HostReq {
+    SystemInfo system = 1;
+}
+
+message SystemInfo {
+    optional string name = 1;
+    optional string kernel_version = 2;
+    optional string os_version = 3;
+    optional string host_name = 4;
+    string cpu_arch = 5;
+    string kernel_long_version = 6;
+    uint64 total_memory = 7;
+    uint64 total_swap = 8;
 }

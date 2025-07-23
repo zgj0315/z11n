@@ -7,7 +7,8 @@ use std::{
 use agent_service::{
     AGENT_ID_TOKEN,
     config::AGENT_SERVICE_TOML,
-    proto::{HeartbeatReq, RegisterReq},
+    host,
+    proto::{Empty, HostReq, RegisterReq},
 };
 use parking_lot::RwLock;
 use rustls::crypto::{CryptoProvider, ring};
@@ -49,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
         *write = (agent_id, token);
     }
 
-    let req = HeartbeatReq {};
+    let req = Empty {};
     let rsp = client.heartbeat(req).await?;
     let mut stream = rsp.into_inner();
     loop {
@@ -68,5 +69,12 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     }
+
+    let system = host::system()?;
+    let host_req = HostReq {
+        system: Some(system),
+    };
+    let rsp = client.host(host_req).await?;
+    log::info!("host rsp: {rsp:?}");
     Ok(())
 }
