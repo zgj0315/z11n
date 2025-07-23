@@ -118,7 +118,7 @@ async fn detail(Path(id): Path<String>, State(app_state): State<AppState>) -> im
                             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
                         }
                     };
-                    return (StatusCode::OK, Json(json)).into_response();
+                    (StatusCode::OK, Json(json)).into_response()
                 }
                 Err(e) => {
                     log::error!("HostReq decode err: {}", e);
