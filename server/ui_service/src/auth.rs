@@ -7,6 +7,7 @@ use axum::{
     response::IntoResponse,
     routing::post,
 };
+use chrono::Utc;
 use entity::tbl_auth_user;
 use once_cell::sync::Lazy;
 use sea_orm::{ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
@@ -123,9 +124,7 @@ async fn logout(Path(token): Path<String>, app_state: State<AppState>) -> impl I
     log::info!("{token} logout");
     match app_state.sled_db.remove(&token) {
         Ok(op) => match op {
-            Some(_) => {
-                (StatusCode::OK, Json(json!({})))
-            }
+            Some(_) => (StatusCode::OK, Json(json!({}))),
             None => {
                 log::warn!("token {token} not exists");
                 (StatusCode::OK, Json(json!({})))
@@ -235,23 +234,23 @@ pub async fn token_expired_task(sled_db: sled::Db) -> anyhow::Result<()> {
     tokio::spawn(async move {
         log::info!("token_expired_task running");
         loop {
-            for r in sled_db.iter() {
-                if let Ok((k, v)) = r {
-                    let ts_now = chrono::Utc::now().timestamp();
-                    let ts = match v.as_ref().try_into() {
-                        Ok(bytes) => i64::from_be_bytes(bytes),
-                        Err(e) => {
-                            log::error!("v.as_ref().try_into() err: {}", e);
-                            0
-                        }
-                    };
+            for (k, v) in sled_db.iter().flatten() {
+                let ts_now = Utc::now().timestamp();
 
-                    if ts_now - ts >= expired_time {
-                        if let Err(e) = sled_db.remove(&k) {
-                            log::error!("sled remove err: {}", e);
-                        }
-                        log::info!("token expired {}", String::from_utf8_lossy(&k));
+                let ts = v
+                    .as_ref()
+                    .try_into()
+                    .map(i64::from_be_bytes)
+                    .unwrap_or_else(|e| {
+                        log::error!("v.as_ref().try_into() err: {}", e);
+                        0
+                    });
+
+                if ts_now - ts >= expired_time {
+                    if let Err(e) = sled_db.remove(&k) {
+                        log::error!("sled remove err: {}", e);
                     }
+                    log::info!("token expired {}", String::from_utf8_lossy(&k));
                 }
             }
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
