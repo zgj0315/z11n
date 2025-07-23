@@ -137,6 +137,11 @@ const App: React.FC = () => {
       key: "version",
     },
     {
+      title: "状态",
+      dataIndex: "state",
+      key: "state",
+    },
+    {
       title: "创建时间",
       dataIndex: "created_at",
       key: "created_at",

@@ -31,6 +31,7 @@ struct QueryInputDto {
 struct QueryOutputDto {
     id: String,
     version: String,
+    state: String,
     created_at: i64,
     updated_at: i64,
 }
@@ -75,6 +76,7 @@ async fn query(
         agents.push(QueryOutputDto {
             id: tbl_agent.id,
             version: tbl_agent.version,
+            state: tbl_agent.state,
             created_at: tbl_agent.created_at.and_utc().timestamp_millis(),
             updated_at: tbl_agent.created_at.and_utc().timestamp_millis(),
         });
