@@ -6,10 +6,8 @@ import { UploadOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import { useNavigate } from "react-router-dom";
 
-type Article = {
-  id: number;
-  title: string;
-  content: string;
+type Host = {
+  agent_id: string;
 };
 
 type Page = {
@@ -54,7 +52,7 @@ const App: React.FC = () => {
       }
     },
   };
-  const update_props = (id: number): UploadProps => ({
+  const update_props = (id: string): UploadProps => ({
     name: "file",
     showUploadList: false,
     customRequest: async (options) => {
@@ -109,7 +107,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     try {
       await restful_api.delete(`/api/hosts/${id}`);
       message.success("删除成功");
@@ -162,21 +160,24 @@ const App: React.FC = () => {
     {
       title: "操作",
       key: "action",
-      render: (_: unknown, record: Article) => (
+      render: (_: unknown, record: Host) => (
         <>
-          <Button type="link" onClick={() => navigate(`/agents/${record.id}`)}>
+          <Button
+            type="link"
+            onClick={() => navigate(`/hosts/${record.agent_id}`)}
+          >
             查看
           </Button>
           {isLoggedIn && (
             <>
-              <Upload {...update_props(record.id)}>
+              <Upload {...update_props(record.agent_id)}>
                 <Button danger type="link">
                   编辑
                 </Button>
               </Upload>
               <Popconfirm
                 title="确定要删除这条记录吗？"
-                onConfirm={() => handleDelete(record.id)}
+                onConfirm={() => handleDelete(record.agent_id)}
                 okText="确定"
                 cancelText="取消"
               >
