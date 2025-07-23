@@ -45,6 +45,7 @@ sea-orm 操作 tbl_agent
 - migration and entity init
 - agent online cache
 - token
+- restful api works
 ### 20250722
 - 启动项目，设计文档
 - 设计工程结构

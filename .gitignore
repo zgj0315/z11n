@@ -3,4 +3,6 @@
 */Cargo.lock
 ca_maker/home-ca
 */*/log
-*/*/data
+*/db
+*/*/node_modules
+*/*/package-lock.json

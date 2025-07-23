@@ -20,7 +20,7 @@ use tonic::{
 async fn main() -> anyhow::Result<()> {
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
     log::info!("client service starting");
-    let db_dir = Path::new("./data");
+    let db_dir = Path::new("../db");
     if !db_dir.exists() {
         fs::create_dir_all(db_dir)?;
         log::info!("create dir: {}", db_dir.to_string_lossy());

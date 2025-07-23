@@ -29,8 +29,8 @@ struct QueryInputDto {
 
 #[derive(Serialize, Debug)]
 struct QueryOutputDto {
-    agent_id: String,
-    agent_version: String,
+    id: String,
+    version: String,
     created_at: i64,
     updated_at: i64,
 }
@@ -73,8 +73,8 @@ async fn query(
     let mut agents = Vec::new();
     for tbl_agent in tbl_agents {
         agents.push(QueryOutputDto {
-            agent_id: tbl_agent.id,
-            agent_version: tbl_agent.version,
+            id: tbl_agent.id,
+            version: tbl_agent.version,
             created_at: tbl_agent.created_at.and_utc().timestamp_millis(),
             updated_at: tbl_agent.created_at.and_utc().timestamp_millis(),
         });

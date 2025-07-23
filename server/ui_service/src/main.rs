@@ -13,7 +13,7 @@ use rustls::crypto;
 use sea_orm::Database;
 use tower_http::services::{ServeDir, ServeFile};
 use ui_service::{
-    AppState,
+    AppState, agent,
     auth::{self, RequireAuth},
     config::UI_SERVICE_TOML,
 };
@@ -22,7 +22,7 @@ use ui_service::{
 async fn main() -> anyhow::Result<()> {
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
 
-    let db_dir = Path::new("./data");
+    let db_dir = Path::new("../db");
     if !db_dir.exists() {
         fs::create_dir_all(db_dir)?;
         log::info!("create dir: {}", db_dir.to_string_lossy());
@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
 
     Migrator::up(&db_conn, None).await?;
 
-    let sled_db = sled::open("./data/sled_db")?;
+    let sled_db = sled::open("../db/sled_db")?;
     auth::token_expired_task(sled_db.clone()).await?;
     let app_state = AppState { db_conn, sled_db };
     let dist_path = if Path::new("../ui_web/dist").exists() {
@@ -54,6 +54,7 @@ async fn main() -> anyhow::Result<()> {
         .fallback_service(
             ServeDir::new(dist_path).fallback(ServeFile::new(format!("{dist_path}/index.html"))),
         )
+        .nest("/api", agent::routers(app_state.clone()))
         .nest("/api", auth::routers(app_state.clone()))
         .layer(from_extractor_with_state::<RequireAuth, _>(Arc::new(
             app_state,
