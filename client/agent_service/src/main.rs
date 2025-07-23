@@ -50,26 +50,34 @@ async fn main() -> anyhow::Result<()> {
         *write = (agent_id, token);
     }
 
-    let req = Empty {};
-    let rsp = client.heartbeat(req).await?;
-    let mut stream = rsp.into_inner();
-    while let Some(v) = stream.next().await {
-        match v {
-            Ok(heartbeat_rsp) => {
-                log::info!("heartbeat_rsp: {heartbeat_rsp:?}");
-            }
-            Err(e) => {
-                log::error!("stream {}", e);
-                break;
-            }
-        }
-    }
-
     let system = host::system()?;
     let host_req = HostReq {
         system: Some(system),
     };
     let rsp = client.host(host_req).await?;
     log::info!("host rsp: {rsp:?}");
+    heartbeat().await?;
     Ok(())
+}
+
+async fn heartbeat() -> anyhow::Result<()> {
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+    loop {
+        interval.tick().await;
+        let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
+        let req = Empty {};
+        let rsp = client.heartbeat(req).await?;
+        let mut stream = rsp.into_inner();
+        while let Some(v) = stream.next().await {
+            match v {
+                Ok(heartbeat_rsp) => {
+                    log::info!("heartbeat_rsp: {heartbeat_rsp:?}");
+                }
+                Err(e) => {
+                    log::error!("stream {}", e);
+                    break;
+                }
+            }
+        }
+    }
 }

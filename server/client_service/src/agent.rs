@@ -16,6 +16,7 @@ pub async fn init_cache(
         let db_conn_clone = db_conn_clone.clone();
         match removal_cause {
             RemovalCause::Expired => {
+                log::warn!("expired");
                 // cache 到达ttl时，会触发此逻辑
                 tokio::spawn(async move {
                     if let Err(e) = agent_offline(&agent_id, db_conn_clone.clone()).await {
@@ -46,19 +47,21 @@ pub async fn init_cache(
 }
 
 async fn agent_offline(agent_id: &str, db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<()> {
+    log::info!("agent_offline start {}", agent_id);
     if let Some(tbl_agent) = tbl_agent::Entity::find()
         .filter(tbl_agent::Column::Id.eq(agent_id))
         .one(&db_conn)
         .await?
     {
         let state = tbl_agent.state.clone();
-        if !state.eq(&AgentState::Offline.to_string()) {
+        if state.eq(&AgentState::Online.to_string()) {
             let mut tbl_agent_am = tbl_agent.into_active_model();
             tbl_agent_am.state = Set(AgentState::Offline.to_string());
             tbl_agent_am.save(&db_conn).await?;
-            log::info!("{} offline in db", agent_id);
+            log::info!("offline in db {}", agent_id);
         }
     }
+    log::info!("agent_offline end {}", agent_id);
     Ok(())
 }
 
@@ -99,7 +102,7 @@ async fn sync_pg_and_cache(
             agent_id_set.insert(agent_id.clone());
             if !cache.contains_key(agent_id) {
                 cache.insert(agent_id.to_string(), token.clone());
-                log::info!("{} online in cache", agent_id);
+                log::info!("online in cache {}", agent_id);
             }
         }
         for (agent_id, _) in cache.iter() {
@@ -112,7 +115,7 @@ async fn sync_pg_and_cache(
                     .filter(tbl_agent::Column::Id.eq(agent_id.as_str()))
                     .exec(&db_conn)
                     .await?;
-                log::info!("{} online in db by sync_pg_and_cache", agent_id);
+                log::info!("online in db by sync_pg_and_cache {}", agent_id);
             }
         }
     }

@@ -17,8 +17,8 @@ pub struct Z11nInterceptor {}
 
 impl Interceptor for Z11nInterceptor {
     fn call(&mut self, req: tonic::Request<()>) -> Result<tonic::Request<()>, Status> {
-        let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
-        log::info!("agent_id: {agent_id}");
+        let _agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
+        // log::info!("agent_id: {agent_id}");
         Ok(req)
     }
 }
@@ -66,6 +66,9 @@ impl Z11nService for Z11nServer {
     ) -> Result<Response<Self::HeartbeatStream>, Status> {
         let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
         let token = extract_metadata_value(req.metadata(), "token")?;
+        self.online_agent_cache
+            .insert(agent_id.to_string(), token.to_string());
+        log::info!("online in cache {}", agent_id);
         match self.online_agent_cache.get(agent_id) {
             Some(v) => {
                 if !v.eq(token) {
@@ -104,7 +107,7 @@ impl Z11nService for Z11nServer {
         let token = uuid::Uuid::new_v4().to_string();
         self.online_agent_cache
             .insert(register_req.agent_id.clone(), token.clone());
-
+        log::info!("online in cache {}", register_req.agent_id);
         match tbl_agent::Entity::find_by_id(&register_req.agent_id)
             .one(&self.db_conn)
             .await
@@ -122,6 +125,7 @@ impl Z11nService for Z11nServer {
                             "tbl_agent find by id err".to_string(),
                         ));
                     }
+                    log::info!("online in db {}", register_req.agent_id);
                 }
                 None => {
                     let tbl_agent_am = tbl_agent::ActiveModel {
@@ -141,6 +145,7 @@ impl Z11nService for Z11nServer {
                             "tbl_agent find by id err".to_string(),
                         ));
                     }
+                    log::info!("online in db {}", register_req.agent_id);
                 }
             },
             Err(e) => {
@@ -151,7 +156,6 @@ impl Z11nService for Z11nServer {
                 ));
             }
         };
-
         let register_rsp = RegisterRsp { token };
         Ok(Response::new(register_rsp))
     }
@@ -160,24 +164,55 @@ impl Z11nService for Z11nServer {
         let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
         let host_req = req.get_ref();
         if let Some(system) = &host_req.system {
-            let tbl_host_am = tbl_host::ActiveModel {
-                agent_id: Set(agent_id.to_string()),
-                name: Set(system.name.clone()),
-                host_name: Set(system.host_name.clone()),
-                os_version: Set(system.os_version.clone()),
-                cpu_arch: Set(system.cpu_arch.clone()),
-                content: Set(host_req.encode_to_vec()),
-                ..Default::default()
-            };
-            if let Err(e) = tbl_host::Entity::insert(tbl_host_am)
-                .exec(&self.db_conn)
+            match tbl_host::Entity::find_by_id(agent_id)
+                .one(&self.db_conn)
                 .await
             {
-                log::error!("tbl_host insert err: {}", e);
-                return Err(tonic::Status::new(
-                    tonic::Code::Internal,
-                    "tbl_host insert err".to_string(),
-                ));
+                Ok(tbl_host_op) => match tbl_host_op {
+                    Some(tbl_host) => {
+                        let mut tbl_host_am = tbl_host.into_active_model();
+                        tbl_host_am.name = Set(system.name.clone());
+                        tbl_host_am.host_name = Set(system.host_name.clone());
+                        tbl_host_am.os_version = Set(system.os_version.clone());
+                        tbl_host_am.cpu_arch = Set(system.cpu_arch.clone());
+                        tbl_host_am.content = Set(host_req.encode_to_vec());
+                        if let Err(e) = tbl_host_am.save(&self.db_conn).await {
+                            log::error!("tbl_host save err: {}", e);
+                            return Err(tonic::Status::new(
+                                tonic::Code::Internal,
+                                "tbl_host save err".to_string(),
+                            ));
+                        }
+                    }
+                    None => {
+                        let tbl_host_am = tbl_host::ActiveModel {
+                            agent_id: Set(agent_id.to_string()),
+                            name: Set(system.name.clone()),
+                            host_name: Set(system.host_name.clone()),
+                            os_version: Set(system.os_version.clone()),
+                            cpu_arch: Set(system.cpu_arch.clone()),
+                            content: Set(host_req.encode_to_vec()),
+                            ..Default::default()
+                        };
+                        if let Err(e) = tbl_host::Entity::insert(tbl_host_am)
+                            .exec(&self.db_conn)
+                            .await
+                        {
+                            log::error!("tbl_host insert err: {}", e);
+                            return Err(tonic::Status::new(
+                                tonic::Code::Internal,
+                                "tbl_host insert err".to_string(),
+                            ));
+                        }
+                    }
+                },
+                Err(e) => {
+                    log::error!("tbl_host find by id err: {}", e);
+                    return Err(tonic::Status::new(
+                        tonic::Code::Internal,
+                        "tbl_host find by id err".to_string(),
+                    ));
+                }
             }
             log::info!("save host success");
         }
