@@ -12,6 +12,6 @@ mod tests {
 
     #[test]
     fn it_works() {
-        println!("{}", AgentState::Online.to_string());
+        println!("{}", AgentState::Online);
     }
 }

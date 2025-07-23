@@ -124,16 +124,16 @@ async fn logout(Path(token): Path<String>, app_state: State<AppState>) -> impl I
     match app_state.sled_db.remove(&token) {
         Ok(op) => match op {
             Some(_) => {
-                return (StatusCode::OK, Json(json!({})));
+                (StatusCode::OK, Json(json!({})))
             }
             None => {
                 log::warn!("token {token} not exists");
-                return (StatusCode::OK, Json(json!({})));
+                (StatusCode::OK, Json(json!({})))
             }
         },
         Err(e) => {
             log::error!("sled remove {token} err: {}", e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({})));
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({})))
         }
     }
 }
@@ -175,16 +175,14 @@ where
             return Ok(Self);
         }
         for (method, api) in WHITE_API_SET.iter() {
-            if method == parts.method {
-                if parts.uri.path().starts_with(api) {
-                    log::info!(
-                        "white list api {} {} {}",
-                        src_ip,
-                        parts.method,
-                        parts.uri.path()
-                    );
-                    return Ok(Self);
-                }
+            if method == parts.method && parts.uri.path().starts_with(api) {
+                log::info!(
+                    "white list api {} {} {}",
+                    src_ip,
+                    parts.method,
+                    parts.uri.path()
+                );
+                return Ok(Self);
             }
         }
 

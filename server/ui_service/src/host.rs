@@ -112,7 +112,7 @@ async fn detail(Path(id): Path<String>, State(app_state): State<AppState>) -> im
             Some(tbl_host) => match HostReq::decode(&*tbl_host.content) {
                 Ok(host_req) => {
                     if let Some(system) = host_req.system {
-                        return (
+                        (
                             StatusCode::OK,
                             Json(json!({
                                 "agent_id":id,
@@ -128,24 +128,24 @@ async fn detail(Path(id): Path<String>, State(app_state): State<AppState>) -> im
                                 "created_at":tbl_host.created_at.and_utc().timestamp_millis()
                             })),
                         )
-                            .into_response();
+                            .into_response()
                     } else {
                         log::warn!("host detail not exist");
-                        return StatusCode::BAD_REQUEST.into_response();
+                        StatusCode::BAD_REQUEST.into_response()
                     }
                 }
                 Err(e) => {
                     log::error!("HostReq decode err: {}", e);
-                    return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                    StatusCode::INTERNAL_SERVER_ERROR.into_response()
                 }
             },
             None => {
-                return StatusCode::BAD_REQUEST.into_response();
+                StatusCode::BAD_REQUEST.into_response()
             }
         },
         Err(e) => {
             log::error!("find agent {} db err: {}", id, e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
@@ -164,11 +164,11 @@ async fn delete(Path(id): Path<String>, State(app_state): State<AppState>) -> im
                     delete_result.rows_affected
                 );
             }
-            return StatusCode::OK;
+            StatusCode::OK
         }
         Err(e) => {
             log::error!("delete host {id} db err: {e}");
-            return StatusCode::INTERNAL_SERVER_ERROR;
+            StatusCode::INTERNAL_SERVER_ERROR
         }
     }
 }
