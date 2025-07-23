@@ -1,8 +1,9 @@
 use crate::proto::{
     Empty, HeartbeatRsp, HostReq, RegisterReq, RegisterRsp, z11n_service_server::Z11nService,
 };
-use entity::tbl_agent;
+use entity::{tbl_agent, tbl_host};
 use moka::sync::Cache;
+use prost::Message;
 use pub_lib::AgentState;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, IntoActiveModel,
@@ -156,8 +157,30 @@ impl Z11nService for Z11nServer {
     }
 
     async fn host(&self, req: Request<HostReq>) -> Result<Response<Empty>, Status> {
+        let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
         let host_req = req.get_ref();
-
+        if let Some(system) = &host_req.system {
+            let tbl_host_am = tbl_host::ActiveModel {
+                agent_id: Set(agent_id.to_string()),
+                name: Set(system.name.clone()),
+                host_name: Set(system.host_name.clone()),
+                os_version: Set(system.os_version.clone()),
+                cpu_arch: Set(system.cpu_arch.clone()),
+                content: Set(host_req.encode_to_vec()),
+                ..Default::default()
+            };
+            if let Err(e) = tbl_host::Entity::insert(tbl_host_am)
+                .exec(&self.db_conn)
+                .await
+            {
+                log::error!("tbl_host insert err: {}", e);
+                return Err(tonic::Status::new(
+                    tonic::Code::Internal,
+                    "tbl_host insert err".to_string(),
+                ));
+            }
+            log::info!("save host success");
+        }
         Ok(Response::new(Empty {}))
     }
 }

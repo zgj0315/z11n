@@ -41,11 +41,9 @@ sea-orm 操作 tbl_agent
 
 ## 4 开发备忘录
 ### TodoList
-- [ ] sysinfo 采集主机信息
-- [ ] agent 和 host 的存储结构
 - [ ] agent 列表查询
 - [ ] host 列表查询
-- [ ] agent 版本号读取
+
 ### 20250723
 - [x] agent register
 - [x] migration and entity init
@@ -54,6 +52,9 @@ sea-orm 操作 tbl_agent
 - [x] restful api works
 - [x] ui works
 - [x] agent_id 稳定机制
+- [x] agent 版本号读取
+- [x] sysinfo 采集主机信息
+- [x] agent 和 host 的存储结构
 ### 20250722
 - [x] 启动项目，设计文档
 - [x] 设计工程结构
