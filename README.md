@@ -41,7 +41,8 @@ sea-orm 操作 tbl_agent
 
 ## 4 开发备忘录
 ### TodoList
-
+- [ ] 主机详情展示
+- [ ] 采集软件信息
 ### 20250723
 - [x] agent register
 - [x] migration and entity init
@@ -55,6 +56,7 @@ sea-orm 操作 tbl_agent
 - [x] agent 和 host 的存储结构
 - [x] agent 列表查询
 - [x] host 列表查询
+- [x] 采集进程信息
 ### 20250722
 - [x] 启动项目，设计文档
 - [x] 设计工程结构

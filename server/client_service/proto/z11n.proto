@@ -50,4 +50,12 @@ message SystemInfo {
     string kernel_long_version = 6;
     uint64 total_memory = 7;
     uint64 total_swap = 8;
+    repeated Process processes = 9;
+}
+
+message Process {
+    uint32 pid = 1;
+    string name = 2;
+    optional string exe = 3;
+    string status = 4;
 }

@@ -1,6 +1,6 @@
 use sysinfo::System;
 
-use crate::proto::SystemInfo;
+use crate::proto::{Process, SystemInfo};
 
 pub fn system() -> anyhow::Result<SystemInfo> {
     let mut system = System::new_all();
@@ -14,6 +14,22 @@ pub fn system() -> anyhow::Result<SystemInfo> {
     let kernel_long_version = System::kernel_long_version();
     let total_memory = system.total_memory();
     let total_swap = system.total_swap();
+    let mut processes = Vec::new();
+    for (pid, process) in system.processes() {
+        let pid = pid.as_u32();
+        let name = process.name().to_string_lossy().to_string();
+        let exe = match process.exe() {
+            Some(exe) => Some(exe.to_string_lossy().to_string()),
+            None => None,
+        };
+        let status = process.status().to_string();
+        processes.push(Process {
+            pid,
+            name,
+            exe,
+            status,
+        });
+    }
     let system = SystemInfo {
         name,
         kernel_version,
@@ -23,6 +39,7 @@ pub fn system() -> anyhow::Result<SystemInfo> {
         kernel_long_version,
         total_memory,
         total_swap,
+        processes,
     };
     Ok(system)
 }
@@ -34,7 +51,8 @@ mod tests {
     #[test]
     fn system_test() -> anyhow::Result<()> {
         let _ = tracing_subscriber::fmt().with_ansi(true).try_init();
-        system()?;
+        let system = system()?;
+        log::info!("{system:?}");
         Ok(())
     }
 }
