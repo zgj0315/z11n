@@ -52,7 +52,7 @@ async fn agent_offline(agent_id: &str, db_conn: sea_orm::DatabaseConnection) -> 
         .await?
     {
         let state = tbl_agent.state.clone();
-        if !state.eq(&AgentState::Online.to_string()) {
+        if !state.eq(&AgentState::Offline.to_string()) {
             let mut tbl_agent_am = tbl_agent.into_active_model();
             tbl_agent_am.state = Set(AgentState::Offline.to_string());
             tbl_agent_am.save(&db_conn).await?;
