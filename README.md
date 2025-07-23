@@ -35,22 +35,29 @@ sea-orm 操作 tbl_agent
 利用其过期淘汰机制实现 agent 离线功能
 
 ### 3.2 技术调研
-- [X] 跨进程读取sqlite数据库问题（WAL模式可以支持）
-- [X] 跨进程读取moka库问题（避免这个问题）
-- [X] 封装一个数据库(sql + kv)操作中间件，将数据库操作收口（这不是好办法，会导致工作量增加）
+- [x] 跨进程读取sqlite数据库问题（WAL模式可以支持）
+- [x] 跨进程读取moka库问题（避免这个问题）
+- [x] 封装一个数据库(sql + kv)操作中间件，将数据库操作收口（这不是好办法，会导致工作量增加）
 
 ## 4 开发备忘录
+### TodoList
+- [ ] sysinfo 采集主机信息
+- [ ] agent 和 host 的存储结构
+- [ ] agent 列表查询
+- [ ] host 列表查询
+- [ ] agent 版本号读取
 ### 20250723
-- agent register
-- migration and entity init
-- agent online cache
-- token
-- restful api works
-- ui works
+- [x] agent register
+- [x] migration and entity init
+- [x] agent online cache
+- [x] token
+- [x] restful api works
+- [x] ui works
+- [x] agent_id 稳定机制
 ### 20250722
-- 启动项目，设计文档
-- 设计工程结构
-- 制作 TLS 证书
-- gRPC 服务端模块（proto文件费了些功夫）
-- gRPC 客户端模块（客户端认证证书波折了一些）
-- 通过 Interceptor 操作 Header 中的 agent_id, agent_version, token
+- [x] 启动项目，设计文档
+- [x] 设计工程结构
+- [x] 制作 TLS 证书
+- [x] gRPC 服务端模块（proto文件费了些功夫）
+- [x] gRPC 客户端模块（客户端认证证书波折了一些）
+- [x] 通过 Interceptor 操作 Header 中的 agent_id, agent_version, token

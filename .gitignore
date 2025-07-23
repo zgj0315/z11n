@@ -6,3 +6,4 @@ ca_maker/home-ca
 */db
 */*/node_modules
 */*/package-lock.json
+*/*/config/.*

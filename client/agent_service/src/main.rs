@@ -1,3 +1,9 @@
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::Path,
+};
+
 use agent_service::{
     AGENT_ID_TOKEN,
     config::AGENT_SERVICE_TOML,
@@ -11,18 +17,29 @@ use tokio_stream::StreamExt;
 async fn main() -> anyhow::Result<()> {
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
     log::info!("agent service starting");
+    let agent_id_config = Path::new("./config/.agent_id");
+    let agent_id = if agent_id_config.exists() {
+        fs::read_to_string(agent_id_config)?
+    } else {
+        let agent_id = uuid::Uuid::new_v4().to_string();
+        let mut file = File::create(agent_id_config)?;
+        file.write_all(agent_id.as_bytes())?;
+        agent_id
+    };
+    let version = env!("CARGO_PKG_VERSION");
+    log::info!("agent_id: {agent_id}, version: {version}");
+
     CryptoProvider::install_default(ring::default_provider())
         .expect("failed to install CryptoProvider");
 
     let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
 
-    let agent_id = uuid::Uuid::new_v4().to_string();
     if let Err(e) = AGENT_ID_TOKEN.set(RwLock::new((agent_id.clone(), "".to_string()))) {
         log::error!("AGENT_ID_TOKEN set err: {:?}", e);
     }
     let register_req = RegisterReq {
         agent_id: agent_id.clone(),
-        agent_version: "0.1.0".to_string(),
+        agent_version: version.to_string(),
     };
     let register_rsp = client.register(register_req).await?;
     let token = register_rsp.get_ref().token.clone();
