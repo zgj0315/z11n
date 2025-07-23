@@ -44,6 +44,7 @@ sea-orm 操作 tbl_agent
 - [ ] 采集软件信息
 - [ ] 调研如何将 Server 端发出的扫描数据包传递到 Agent 上
 - [ ] 前端国际化方案调研
+- [ ] 调研 handlebars 实现kv内容的显示
 ### 20250723
 - [x] agent register
 - [x] migration and entity init
