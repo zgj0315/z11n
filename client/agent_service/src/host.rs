@@ -18,10 +18,7 @@ pub fn system() -> anyhow::Result<SystemInfo> {
     for (pid, process) in system.processes() {
         let pid = pid.as_u32();
         let name = process.name().to_string_lossy().to_string();
-        let exe = match process.exe() {
-            Some(exe) => Some(exe.to_string_lossy().to_string()),
-            None => None,
-        };
+        let exe = process.exe().map(|exe| exe.to_string_lossy().to_string());
         let status = process.status().to_string();
         processes.push(Process {
             pid,
