@@ -138,8 +138,13 @@ async fn logout(Path(token): Path<String>, app_state: State<AppState>) -> impl I
     }
 }
 
-static WHITE_API_SET: Lazy<HashSet<(Method, &'static str)>> =
-    Lazy::new(|| HashSet::from([(Method::POST, "/api/login"), (Method::GET, "/api/agent")]));
+static WHITE_API_SET: Lazy<HashSet<(Method, &'static str)>> = Lazy::new(|| {
+    HashSet::from([
+        (Method::POST, "/api/login"),
+        (Method::GET, "/api/agents"),
+        (Method::GET, "/api/hosts"),
+    ])
+});
 pub struct RequireAuth;
 
 impl<S> FromRequestParts<S> for RequireAuth
