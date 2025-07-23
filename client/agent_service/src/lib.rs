@@ -42,6 +42,8 @@ fn intercept(mut req: Request<()>) -> Result<Request<()>, Status> {
         req.metadata_mut()
             .insert("agent_id", agent_id.parse().unwrap());
         req.metadata_mut().insert("token", token.parse().unwrap());
-    };
-    Ok(req)
+        Ok(req)
+    } else {
+        Err(Status::unauthenticated("agent_id_token not initialized"))
+    }
 }

@@ -53,18 +53,13 @@ async fn main() -> anyhow::Result<()> {
     let req = Empty {};
     let rsp = client.heartbeat(req).await?;
     let mut stream = rsp.into_inner();
-    loop {
-        match stream.next().await {
-            Some(v) => match v {
-                Ok(heartbeat_rsp) => {
-                    log::info!("heartbeat_rsp: {heartbeat_rsp:?}");
-                }
-                Err(e) => {
-                    log::error!("stream {}", e);
-                    break;
-                }
-            },
-            None => {
+    while let Some(v) = stream.next().await {
+        match v {
+            Ok(heartbeat_rsp) => {
+                log::info!("heartbeat_rsp: {heartbeat_rsp:?}");
+            }
+            Err(e) => {
+                log::error!("stream {}", e);
                 break;
             }
         }
