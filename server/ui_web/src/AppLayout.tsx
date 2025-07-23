@@ -24,6 +24,11 @@ const App: React.FC = () => {
       icon: <UserOutlined />,
       label: "Agent管理",
     },
+    {
+      key: "/hosts",
+      icon: <UserOutlined />,
+      label: "主机管理",
+    },
   ];
   const isLoggedIn = !!localStorage.getItem("token");
   if (isLoggedIn) {
