@@ -1,8 +1,42 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Descriptions, Spin } from "antd";
-import type { DescriptionsProps } from "antd";
+import { Descriptions, Spin, Tabs, Table } from "antd";
+import type { DescriptionsProps, TabsProps, TableProps } from "antd";
 import restful_api from "./RESTfulApi.tsx";
+
+interface ProcessType {
+  pid: number;
+  name: string;
+  exe: string;
+  status: string;
+}
+
+const columns: TableProps<ProcessType>["columns"] = [
+  {
+    title: "Pid",
+    dataIndex: "pid",
+    key: "pid",
+  },
+  {
+    title: "Name",
+    dataIndex: "name",
+    key: "name",
+  },
+  {
+    title: "Exe",
+    dataIndex: "exe",
+    key: "exe",
+  },
+  {
+    title: "Status",
+    dataIndex: "status",
+    key: "status",
+  },
+];
+
+const onChange = (key: string) => {
+  console.log(key);
+};
 
 function jsonToDescriptionsItems(obj: Record<string, unknown>) {
   return Object.entries(obj)
@@ -19,14 +53,33 @@ function jsonToDescriptionsItems(obj: Record<string, unknown>) {
 
 const App: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [items, setItems] = useState<DescriptionsProps["items"]>([]);
+  const [systemItems, setSystemItems] = useState<DescriptionsProps["items"]>(
+    []
+  );
+  const [processItems, setProcessItems] = useState<ProcessType[]>([]);
   const [loading, setLoading] = useState(true);
+  const tabItems: TabsProps["items"] = [
+    {
+      key: "system_info",
+      label: "System Info",
+      children: (
+        <Descriptions title="System Info" bordered items={systemItems} />
+      ),
+    },
+    {
+      key: "processes",
+      label: "Processes",
+      children: (
+        <Table<ProcessType> columns={columns} dataSource={processItems} />
+      ),
+    },
+  ];
   useEffect(() => {
     restful_api
       .get(`/api/hosts/${id}`)
       .then((res) => {
-        // setData(res.data);
-        setItems(jsonToDescriptionsItems(res.data.system));
+        setSystemItems(jsonToDescriptionsItems(res.data.system));
+        setProcessItems(res.data.system.processes);
       })
       .catch((err) => {
         console.error("Failed to fetch system info:", err);
@@ -40,10 +93,14 @@ const App: React.FC = () => {
     return <Spin tip="Loading..." />;
   }
 
-  if (!items) {
+  if (!systemItems) {
     return <div>No data</div>;
   }
-  return <Descriptions title="System Info" bordered items={items} />;
+  return (
+    <>
+      <Tabs defaultActiveKey="1" items={tabItems} onChange={onChange} />
+    </>
+  );
 };
 
 export default App;
