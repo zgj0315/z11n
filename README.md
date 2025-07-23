@@ -46,6 +46,7 @@ sea-orm 操作 tbl_agent
 - agent online cache
 - token
 - restful api works
+- ui works
 ### 20250722
 - 启动项目，设计文档
 - 设计工程结构
