@@ -5,6 +5,7 @@ import LoginPage from "./LoginPage.tsx";
 import AgentQueryPage from "./AgentQueryPage.tsx";
 import AgentDetailPage from "./AgentDetailPage.tsx";
 import HostQueryPage from "./HostQueryPage.tsx";
+import HostDetailPage from "./HostDetailPage.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -15,6 +16,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="agents" element={<AgentQueryPage />} />
         <Route path="agents/:id" element={<AgentDetailPage />} />
         <Route path="hosts" element={<HostQueryPage />} />
+        <Route path="hosts/:id" element={<HostDetailPage />} />
       </Route>
     </Routes>
   </BrowserRouter>

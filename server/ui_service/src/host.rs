@@ -111,37 +111,21 @@ async fn detail(Path(id): Path<String>, State(app_state): State<AppState>) -> im
         Ok(tbl_host_op) => match tbl_host_op {
             Some(tbl_host) => match HostReq::decode(&*tbl_host.content) {
                 Ok(host_req) => {
-                    if let Some(system) = host_req.system {
-                        (
-                            StatusCode::OK,
-                            Json(json!({
-                                "agent_id":id,
-                                "name":system.name,
-                                "kernel_version":system.kernel_version,
-                                "name":system.name,
-                                "os_version":system.os_version,
-                                "host_name":system.host_name,
-                                "cpu_arch":system.cpu_arch,
-                                "kernel_long_version":system.kernel_long_version,
-                                "total_memory":system.total_memory,
-                                "total_swap":system.total_swap,
-                                "created_at":tbl_host.created_at.and_utc().timestamp_millis()
-                            })),
-                        )
-                            .into_response()
-                    } else {
-                        log::warn!("host detail not exist");
-                        StatusCode::BAD_REQUEST.into_response()
-                    }
+                    let json = match serde_json::to_value(host_req) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log::error!("host content to json err: {}", e);
+                            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                        }
+                    };
+                    return (StatusCode::OK, Json(json)).into_response();
                 }
                 Err(e) => {
                     log::error!("HostReq decode err: {}", e);
                     StatusCode::INTERNAL_SERVER_ERROR.into_response()
                 }
             },
-            None => {
-                StatusCode::BAD_REQUEST.into_response()
-            }
+            None => StatusCode::BAD_REQUEST.into_response(),
         },
         Err(e) => {
             log::error!("find agent {} db err: {}", id, e);

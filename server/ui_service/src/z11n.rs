@@ -99,4 +99,18 @@ pub struct SystemInfo {
     pub total_memory: u64,
     #[prost(uint64, tag = "8")]
     pub total_swap: u64,
+    #[prost(message, repeated, tag = "9")]
+    pub processes: ::prost::alloc::vec::Vec<Process>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Process {
+    #[prost(uint32, tag = "1")]
+    pub pid: u32,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "3")]
+    pub exe: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, tag = "4")]
+    pub status: ::prost::alloc::string::String,
 }
