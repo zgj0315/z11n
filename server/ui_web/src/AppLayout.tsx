@@ -1,9 +1,5 @@
 import React from "react";
-import {
-  UploadOutlined,
-  UserOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons";
+import { UserOutlined } from "@ant-design/icons";
 import { Layout, Menu, theme, Button, Breadcrumb } from "antd";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import restful_api from "./RESTfulApi.tsx";
@@ -32,16 +28,16 @@ const App: React.FC = () => {
   ];
   const isLoggedIn = !!localStorage.getItem("token");
   if (isLoggedIn) {
-    menuItems.push({
-      key: "/pdf_article_access_logs",
-      icon: <VideoCameraOutlined />,
-      label: "浏览记录",
-    });
-    menuItems.push({
-      key: "/logs",
-      icon: <VideoCameraOutlined />,
-      label: "操作日志",
-    });
+    // menuItems.push({
+    //   key: "/pdf_article_access_logs",
+    //   icon: <VideoCameraOutlined />,
+    //   label: "浏览记录",
+    // });
+    // menuItems.push({
+    //   key: "/logs",
+    //   icon: <VideoCameraOutlined />,
+    //   label: "操作日志",
+    // });
   }
   return (
     <Layout>
@@ -111,7 +107,7 @@ const App: React.FC = () => {
         </Layout>
       </Layout>
       <Footer style={{ textAlign: "center" }}>
-        Self Examination ©{new Date().getFullYear()} Created by Zhaogj
+        Z11N ©{new Date().getFullYear()} Created by Zhaogj
       </Footer>
     </Layout>
   );

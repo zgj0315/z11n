@@ -6,10 +6,8 @@ import { UploadOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import { useNavigate } from "react-router-dom";
 
-type Article = {
-  id: number;
-  title: string;
-  content: string;
+type Agent = {
+  id: string;
 };
 
 type Page = {
@@ -54,37 +52,6 @@ const App: React.FC = () => {
       }
     },
   };
-  const update_props = (id: number): UploadProps => ({
-    name: "file",
-    showUploadList: false,
-    customRequest: async (options) => {
-      const { file, onSuccess, onProgress } = options;
-
-      const formData = new FormData();
-      formData.append("file", file as Blob);
-
-      try {
-        const response = await restful_api.patch(
-          `/api/agents/${id}`,
-          formData,
-          {
-            onUploadProgress: (event) => {
-              if (event.total) {
-                const percent = Math.round((event.loaded * 100) / event.total);
-                onProgress?.({ percent });
-              }
-            },
-          }
-        );
-        onSuccess?.(response.data);
-        message.success(`${(file as File).name} uploaded successfully`);
-        handleQuery();
-      } catch (error) {
-        console.error("Upload error:", error);
-        message.error(`${(file as File).name} upload failed.`);
-      }
-    },
-  });
 
   const handleQuery = async (
     page = current,
@@ -115,7 +82,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     try {
       await restful_api.delete(`/api/agents/${id}`);
       message.success("删除成功");
@@ -158,18 +125,13 @@ const App: React.FC = () => {
     {
       title: "操作",
       key: "action",
-      render: (_: unknown, record: Article) => (
+      render: (_: unknown, record: Agent) => (
         <>
           <Button type="link" onClick={() => navigate(`/agents/${record.id}`)}>
             查看
           </Button>
           {isLoggedIn && (
             <>
-              <Upload {...update_props(record.id)}>
-                <Button danger type="link">
-                  编辑
-                </Button>
-              </Upload>
               <Popconfirm
                 title="确定要删除这条记录吗？"
                 onConfirm={() => handleDelete(record.id)}

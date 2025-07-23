@@ -52,33 +52,6 @@ const App: React.FC = () => {
       }
     },
   };
-  const update_props = (id: string): UploadProps => ({
-    name: "file",
-    showUploadList: false,
-    customRequest: async (options) => {
-      const { file, onSuccess, onProgress } = options;
-
-      const formData = new FormData();
-      formData.append("file", file as Blob);
-
-      try {
-        const response = await restful_api.patch(`/api/hosts/${id}`, formData, {
-          onUploadProgress: (event) => {
-            if (event.total) {
-              const percent = Math.round((event.loaded * 100) / event.total);
-              onProgress?.({ percent });
-            }
-          },
-        });
-        onSuccess?.(response.data);
-        message.success(`${(file as File).name} uploaded successfully`);
-        handleQuery();
-      } catch (error) {
-        console.error("Upload error:", error);
-        message.error(`${(file as File).name} upload failed.`);
-      }
-    },
-  });
 
   const handleQuery = async (
     page = current,
@@ -170,11 +143,6 @@ const App: React.FC = () => {
           </Button>
           {isLoggedIn && (
             <>
-              <Upload {...update_props(record.agent_id)}>
-                <Button danger type="link">
-                  编辑
-                </Button>
-              </Upload>
               <Popconfirm
                 title="确定要删除这条记录吗？"
                 onConfirm={() => handleDelete(record.agent_id)}
