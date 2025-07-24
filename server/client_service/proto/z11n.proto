@@ -40,8 +40,8 @@ message RegisterRsp {
 
 message HostReq {
     SystemInfo system = 1;
-    DiskInfo disk = 2;
-    NetworkInfo network = 3;    
+    repeated DiskInfo disks = 2;
+    repeated NetworkInfo networks = 3;
 }
 
 message SystemInfo {
@@ -64,9 +64,19 @@ message ProcessInfo {
 }
 
 message DiskInfo {
-
+    string name = 1;
+    string file_system = 2;
+    string mount_point = 3;
+    string kind = 4;
+    uint64 total_space = 5;
+    uint64 available_space = 6;
+    bool is_removable = 7;
+    bool is_read_only = 8;
 }
 
 message NetworkInfo {
-
+    string interface_name = 1;
+    uint64 total_received = 2;
+    uint64 total_transmitted = 3;
+    repeated string addrs = 4;
 }

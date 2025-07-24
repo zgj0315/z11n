@@ -3,18 +3,28 @@
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Empty {}
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct HeartbeatRsp {
-    /// 指令类型
-    #[prost(enumeration = "heartbeat_rsp::CmdType", tag = "1")]
-    pub cmd_type: i32,
-    /// 指令内容
-    #[prost(string, tag = "2")]
-    pub cmd_content: ::prost::alloc::string::String,
+    #[prost(oneof = "heartbeat_rsp::Task", tags = "1")]
+    pub task: ::core::option::Option<heartbeat_rsp::Task>,
 }
 /// Nested message and enum types in `HeartbeatRsp`.
 pub mod heartbeat_rsp {
-    /// 指令类型枚举
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[derive(Clone, Copy, PartialEq, ::prost::Oneof)]
+    pub enum Task {
+        #[prost(message, tag = "1")]
+        UploadHost(super::UploadHost),
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct UploadHost {
+    #[prost(enumeration = "upload_host::InfoType", tag = "1")]
+    pub info_type: i32,
+}
+/// Nested message and enum types in `UploadHost`.
+pub mod upload_host {
     #[derive(serde::Serialize, serde::Deserialize)]
     #[derive(
         Clone,
@@ -28,28 +38,29 @@ pub mod heartbeat_rsp {
         ::prost::Enumeration
     )]
     #[repr(i32)]
-    pub enum CmdType {
-        /// 啥也不干
-        Nothing = 0,
-        /// 打印日志
-        Print = 1,
+    pub enum InfoType {
+        System = 0,
+        Disk = 1,
+        Network = 2,
     }
-    impl CmdType {
+    impl InfoType {
         /// String value of the enum field names used in the ProtoBuf definition.
         ///
         /// The values are not transformed in any way and thus are considered stable
         /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
-                Self::Nothing => "NOTHING",
-                Self::Print => "PRINT",
+                Self::System => "SYSTEM",
+                Self::Disk => "DISK",
+                Self::Network => "NETWORK",
             }
         }
         /// Creates an enum from field names used in the ProtoBuf definition.
         pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
             match value {
-                "NOTHING" => Some(Self::Nothing),
-                "PRINT" => Some(Self::Print),
+                "SYSTEM" => Some(Self::System),
+                "DISK" => Some(Self::Disk),
+                "NETWORK" => Some(Self::Network),
                 _ => None,
             }
         }
@@ -79,6 +90,10 @@ pub struct RegisterRsp {
 pub struct HostReq {
     #[prost(message, optional, tag = "1")]
     pub system: ::core::option::Option<SystemInfo>,
+    #[prost(message, optional, tag = "2")]
+    pub disk: ::core::option::Option<DiskInfo>,
+    #[prost(message, optional, tag = "3")]
+    pub network: ::core::option::Option<NetworkInfo>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -100,11 +115,11 @@ pub struct SystemInfo {
     #[prost(uint64, tag = "8")]
     pub total_swap: u64,
     #[prost(message, repeated, tag = "9")]
-    pub processes: ::prost::alloc::vec::Vec<Process>,
+    pub processes: ::prost::alloc::vec::Vec<ProcessInfo>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Process {
+pub struct ProcessInfo {
     #[prost(uint32, tag = "1")]
     pub pid: u32,
     #[prost(string, tag = "2")]
@@ -114,3 +129,9 @@ pub struct Process {
     #[prost(string, tag = "4")]
     pub status: ::prost::alloc::string::String,
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct DiskInfo {}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct NetworkInfo {}

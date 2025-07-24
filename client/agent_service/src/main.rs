@@ -2,6 +2,7 @@ use std::{
     fs::{self, File},
     io::Write,
     path::Path,
+    thread,
 };
 
 use agent_service::{
@@ -12,15 +13,20 @@ use agent_service::{
         Empty, HeartbeatRsp, HostReq, RegisterReq, heartbeat_rsp::Task, upload_host::InfoType,
     },
 };
+use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use rustls::crypto::{CryptoProvider, ring};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
+static HOST_INFO: OnceCell<RwLock<HostReq>> = OnceCell::new();
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
     log::info!("agent service starting");
+    if let Err(e) = HOST_INFO.set(HostReq::default().into()) {
+        log::error!("HOST_INFO set err: {:?}", e);
+    }
     let agent_id_config = Path::new("./config/.agent_id");
     let agent_id = if agent_id_config.exists() {
         fs::read_to_string(agent_id_config)?
@@ -35,8 +41,6 @@ async fn main() -> anyhow::Result<()> {
 
     CryptoProvider::install_default(ring::default_provider())
         .expect("failed to install CryptoProvider");
-
-    let (tx_heartbeat_rsp, rx_heartbeat_rsp) = mpsc::channel(1_000);
 
     let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
 
@@ -55,8 +59,16 @@ async fn main() -> anyhow::Result<()> {
         *write = (agent_id, token);
     }
 
+    let (tx_heartbeat_rsp, rx_heartbeat_rsp) = mpsc::channel(1_000);
+    let (tx_req, rx_req) = mpsc::channel(1_000);
+
+    thread::spawn(|| {
+        if let Err(e) = consume_heartbeat_rsp(rx_heartbeat_rsp, tx_req) {
+            log::error!("consume_heartbeat_rsp err: {}", e);
+        }
+    });
     tokio::spawn(async move {
-        if let Err(e) = consume_heartbeat_rsp(rx_heartbeat_rsp).await {
+        if let Err(e) = consume_req(rx_req).await {
             log::error!("consume_heartbeat_rsp err: {}", e);
         }
     });
@@ -64,6 +76,9 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+enum Req {
+    HostReq(HostReq),
+}
 async fn heartbeat(tx_heartbeat_rsp: mpsc::Sender<HeartbeatRsp>) -> anyhow::Result<()> {
     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
     loop {
@@ -87,41 +102,89 @@ async fn heartbeat(tx_heartbeat_rsp: mpsc::Sender<HeartbeatRsp>) -> anyhow::Resu
     }
 }
 
-async fn consume_heartbeat_rsp(
-    mut rx_heartbeat_rsp: mpsc::Receiver<HeartbeatRsp>,
-) -> anyhow::Result<()> {
-    while let Some(heartbeat_rsp) = rx_heartbeat_rsp.recv().await {
-        if let Some(task) = heartbeat_rsp.task {
-            match task {
-                Task::UploadHost(upload_host) => match upload_host.info_type() {
-                    InfoType::System => {
-                        log::info!("upload system info");
-                        if let Err(e) = upload_system_info().await {
-                            log::error!("upload_system_info err: {}", e);
-                        };
-                    }
-                    InfoType::Disk => {
-                        log::info!("upload disk info");
-                    }
-                    InfoType::Network => {
-                        log::info!("upload network info");
-                    }
-                },
+async fn consume_req(mut rx_req: mpsc::Receiver<Req>) -> anyhow::Result<()> {
+    while let Some(req) = rx_req.recv().await {
+        match req {
+            Req::HostReq(host_req) => {
+                let mut client =
+                    agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
+                if let Err(e) = client.host(host_req).await {
+                    log::error!("host api err: {}", e);
+                }
             }
         }
     }
     Ok(())
 }
 
-async fn upload_system_info() -> anyhow::Result<()> {
-    let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
-    let system = host::system()?;
-    let host_req = HostReq {
-        system: Some(system),
-        disk: None,
-        network: None,
-    };
-    let rsp = client.host(host_req).await?;
-    log::info!("host rsp: {rsp:?}");
+fn consume_heartbeat_rsp(
+    mut rx_heartbeat_rsp: mpsc::Receiver<HeartbeatRsp>,
+    tx_req: mpsc::Sender<Req>,
+) -> anyhow::Result<()> {
+    while let Some(heartbeat_rsp) = rx_heartbeat_rsp.blocking_recv() {
+        if let Some(task) = heartbeat_rsp.task {
+            match task {
+                Task::UploadHost(upload_host) => match upload_host.info_type() {
+                    InfoType::System => {
+                        log::info!("upload system info");
+                        let system = host::system()?;
+                        if let Some(lock) = HOST_INFO.get() {
+                            let mut write = lock.write();
+                            write.system = Some(system.clone()).into();
+                        }
+                        if let Some(lock) = HOST_INFO.get() {
+                            let read = lock.read();
+                            let host_req = HostReq {
+                                system: read.system.clone(),
+                                disks: read.disks.clone(),
+                                networks: read.networks.clone(),
+                            };
+                            if let Err(e) = tx_req.blocking_send(Req::HostReq(host_req)) {
+                                log::error!("tx_req send err: {}", e);
+                            }
+                        }
+                    }
+                    InfoType::Disk => {
+                        log::info!("upload disk info");
+                        let disks = host::disk()?;
+                        if let Some(lock) = HOST_INFO.get() {
+                            let mut write = lock.write();
+                            write.disks = disks.into();
+                        }
+                        if let Some(lock) = HOST_INFO.get() {
+                            let read = lock.read();
+                            let host_req = HostReq {
+                                system: read.system.clone(),
+                                disks: read.disks.clone(),
+                                networks: read.networks.clone(),
+                            };
+                            if let Err(e) = tx_req.blocking_send(Req::HostReq(host_req)) {
+                                log::error!("tx_req send err: {}", e);
+                            }
+                        }
+                    }
+                    InfoType::Network => {
+                        log::info!("upload network info");
+                        let networks = host::network()?;
+                        if let Some(lock) = HOST_INFO.get() {
+                            let mut write = lock.write();
+                            write.networks = networks.into();
+                        }
+                        if let Some(lock) = HOST_INFO.get() {
+                            let read = lock.read();
+                            let host_req = HostReq {
+                                system: read.system.clone(),
+                                disks: read.disks.clone(),
+                                networks: read.networks.clone(),
+                            };
+                            if let Err(e) = tx_req.blocking_send(Req::HostReq(host_req)) {
+                                log::error!("tx_req send err: {}", e);
+                            }
+                        }
+                    }
+                },
+            }
+        }
+    }
     Ok(())
 }

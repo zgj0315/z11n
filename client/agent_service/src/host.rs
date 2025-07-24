@@ -1,6 +1,5 @@
-use sysinfo::System;
-
-use crate::proto::{ProcessInfo, SystemInfo};
+use crate::proto::{DiskInfo, NetworkInfo, ProcessInfo, SystemInfo};
+use sysinfo::{Disks, Networks, System};
 
 pub fn system() -> anyhow::Result<SystemInfo> {
     let mut system = System::new_all();
@@ -41,6 +40,44 @@ pub fn system() -> anyhow::Result<SystemInfo> {
     Ok(system)
 }
 
+pub fn disk() -> anyhow::Result<Vec<DiskInfo>> {
+    let mut r = Vec::new();
+    let disks = Disks::new_with_refreshed_list();
+    for disk in &disks {
+        let disk = DiskInfo {
+            name: disk.name().to_string_lossy().to_string(),
+            file_system: disk.file_system().to_string_lossy().to_string(),
+            mount_point: disk.mount_point().to_string_lossy().to_string(),
+            kind: disk.kind().to_string(),
+            total_space: disk.total_space(),
+            available_space: disk.available_space(),
+            is_removable: disk.is_removable(),
+            is_read_only: disk.is_read_only(),
+        };
+        r.push(disk);
+    }
+
+    Ok(r)
+}
+
+pub fn network() -> anyhow::Result<Vec<NetworkInfo>> {
+    let mut r = Vec::new();
+    let networks = Networks::new_with_refreshed_list();
+    for (interface_name, data) in &networks {
+        let mut addrs = Vec::new();
+        for ip_network in data.ip_networks() {
+            addrs.push(ip_network.addr.to_string());
+        }
+        let network = NetworkInfo {
+            interface_name: interface_name.to_string(),
+            total_received: data.total_received(),
+            total_transmitted: data.total_transmitted(),
+            addrs,
+        };
+        r.push(network);
+    }
+    Ok(r)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -50,6 +87,22 @@ mod tests {
         let _ = tracing_subscriber::fmt().with_ansi(true).try_init();
         let system = system()?;
         log::info!("{system:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn disk_test() -> anyhow::Result<()> {
+        let _ = tracing_subscriber::fmt().with_ansi(true).try_init();
+        let disk = disk()?;
+        log::info!("{disk:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn network_test() -> anyhow::Result<()> {
+        let _ = tracing_subscriber::fmt().with_ansi(true).try_init();
+        let network = network()?;
+        log::info!("{network:?}");
         Ok(())
     }
 }

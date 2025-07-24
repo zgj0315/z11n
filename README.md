@@ -49,6 +49,8 @@ sea-orm 操作 tbl_agent
 - [ ] 系统升级（升级包制作，上传升级包+升级动作）
 ### 20250724
 - [x] 系统安装包制作脚本
+- [x] 支持上传多种主机信息
+- [ ] disk and network
 ### 20250723
 - [x] agent register
 - [x] migration and entity init

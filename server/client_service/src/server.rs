@@ -69,7 +69,7 @@ impl Z11nService for Z11nServer {
         let token = extract_metadata_value(req.metadata(), "token")?;
         self.online_agent_cache
             .insert(agent_id.to_string(), token.to_string());
-        log::info!("online in cache {}", agent_id);
+        // log::info!("online in cache {}", agent_id);
         match self.online_agent_cache.get(agent_id) {
             Some(v) => {
                 if !v.eq(token) {
@@ -89,7 +89,7 @@ impl Z11nService for Z11nServer {
         let (tx, rx) = mpsc::channel(10);
         tokio::spawn(async move {
             let ts = chrono::Utc::now().timestamp_millis();
-            let heartbeat_rsp = match ts % 10 {
+            let heartbeat_rsp = match ts % 5 {
                 1 => HeartbeatRsp {
                     task: Some(Task::UploadHost(UploadHost {
                         info_type: InfoType::System.into(),
@@ -183,23 +183,13 @@ impl Z11nService for Z11nServer {
             Ok(tbl_host_op) => match tbl_host_op {
                 // 数据里有
                 Some(tbl_host) => {
-                    let mut host_req_db = match HostReq::decode(&*tbl_host.content) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            log::error!("HostReq decode err: {}", e);
-                            HostReq::default()
-                        }
-                    };
-
                     if let Some(system) = &host_req.system {
-                        host_req_db.system = Some(system.clone());
-
                         let mut tbl_host_am = tbl_host.clone().into_active_model();
                         tbl_host_am.name = Set(system.name.clone());
                         tbl_host_am.host_name = Set(system.host_name.clone());
                         tbl_host_am.os_version = Set(system.os_version.clone());
                         tbl_host_am.cpu_arch = Set(system.cpu_arch.clone());
-                        tbl_host_am.content = Set(host_req_db.encode_to_vec());
+                        tbl_host_am.content = Set(host_req.encode_to_vec());
                         tbl_host_am.updated_at = Set(chrono::Utc::now().naive_utc());
                         if let Err(e) = tbl_host_am.save(&self.db_conn).await {
                             log::error!("tbl_host save err: {}", e);
@@ -208,27 +198,14 @@ impl Z11nService for Z11nServer {
                                 "tbl_host save err".to_string(),
                             ));
                         }
-                    }
-                    if let Some(disk) = &host_req.disk {
-                        host_req_db.disk = Some(disk.clone());
-
+                    } else {
                         let mut tbl_host_am = tbl_host.clone().into_active_model();
-                        tbl_host_am.content = Set(host_req_db.encode_to_vec());
+                        tbl_host_am.name = Set(None);
+                        tbl_host_am.host_name = Set(None);
+                        tbl_host_am.os_version = Set(None);
+                        tbl_host_am.cpu_arch = Set("".to_string());
                         tbl_host_am.updated_at = Set(chrono::Utc::now().naive_utc());
-                        if let Err(e) = tbl_host_am.save(&self.db_conn).await {
-                            log::error!("tbl_host save err: {}", e);
-                            return Err(tonic::Status::new(
-                                tonic::Code::Internal,
-                                "tbl_host save err".to_string(),
-                            ));
-                        }
-                    }
-                    if let Some(network) = &host_req.network {
-                        host_req_db.network = Some(network.clone());
-
-                        let mut tbl_host_am = tbl_host.into_active_model();
-                        tbl_host_am.content = Set(host_req_db.encode_to_vec());
-                        tbl_host_am.updated_at = Set(chrono::Utc::now().naive_utc());
+                        tbl_host_am.content = Set(host_req.encode_to_vec());
                         if let Err(e) = tbl_host_am.save(&self.db_conn).await {
                             log::error!("tbl_host save err: {}", e);
                             return Err(tonic::Status::new(
