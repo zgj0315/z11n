@@ -1,6 +1,6 @@
 use sysinfo::System;
 
-use crate::proto::{Process, SystemInfo};
+use crate::proto::{ProcessInfo, SystemInfo};
 
 pub fn system() -> anyhow::Result<SystemInfo> {
     let mut system = System::new_all();
@@ -20,7 +20,7 @@ pub fn system() -> anyhow::Result<SystemInfo> {
         let name = process.name().to_string_lossy().to_string();
         let exe = process.exe().map(|exe| exe.to_string_lossy().to_string());
         let status = process.status().to_string();
-        processes.push(Process {
+        processes.push(ProcessInfo {
             pid,
             name,
             exe,

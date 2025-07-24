@@ -8,10 +8,13 @@ use agent_service::{
     AGENT_ID_TOKEN,
     config::AGENT_SERVICE_TOML,
     host,
-    proto::{Empty, HostReq, RegisterReq},
+    proto::{
+        Empty, HeartbeatRsp, HostReq, RegisterReq, heartbeat_rsp::Task, upload_host::InfoType,
+    },
 };
 use parking_lot::RwLock;
 use rustls::crypto::{CryptoProvider, ring};
+use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 
 #[tokio::main]
@@ -33,6 +36,8 @@ async fn main() -> anyhow::Result<()> {
     CryptoProvider::install_default(ring::default_provider())
         .expect("failed to install CryptoProvider");
 
+    let (tx_heartbeat_rsp, rx_heartbeat_rsp) = mpsc::channel(1_000);
+
     let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
 
     if let Err(e) = AGENT_ID_TOKEN.set(RwLock::new((agent_id.clone(), "".to_string()))) {
@@ -50,17 +55,16 @@ async fn main() -> anyhow::Result<()> {
         *write = (agent_id, token);
     }
 
-    let system = host::system()?;
-    let host_req = HostReq {
-        system: Some(system),
-    };
-    let rsp = client.host(host_req).await?;
-    log::info!("host rsp: {rsp:?}");
-    heartbeat().await?;
+    tokio::spawn(async move {
+        if let Err(e) = consume_heartbeat_rsp(rx_heartbeat_rsp).await {
+            log::error!("consume_heartbeat_rsp err: {}", e);
+        }
+    });
+    heartbeat(tx_heartbeat_rsp).await?;
     Ok(())
 }
 
-async fn heartbeat() -> anyhow::Result<()> {
+async fn heartbeat(tx_heartbeat_rsp: mpsc::Sender<HeartbeatRsp>) -> anyhow::Result<()> {
     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
     loop {
         interval.tick().await;
@@ -72,6 +76,7 @@ async fn heartbeat() -> anyhow::Result<()> {
             match v {
                 Ok(heartbeat_rsp) => {
                     log::info!("heartbeat_rsp: {heartbeat_rsp:?}");
+                    tx_heartbeat_rsp.send(heartbeat_rsp).await?;
                 }
                 Err(e) => {
                     log::error!("stream {}", e);
@@ -80,4 +85,41 @@ async fn heartbeat() -> anyhow::Result<()> {
             }
         }
     }
+}
+
+async fn consume_heartbeat_rsp(
+    mut rx_heartbeat_rsp: mpsc::Receiver<HeartbeatRsp>,
+) -> anyhow::Result<()> {
+    while let Some(heartbeat_rsp) = rx_heartbeat_rsp.recv().await {
+        if let Some(task) = heartbeat_rsp.task {
+            match task {
+                Task::UploadHost(upload_host) => match upload_host.info_type() {
+                    InfoType::System => {
+                        log::info!("upload system info");
+                        if let Err(e) = upload_system_info().await {
+                            log::error!("upload_system_info err: {}", e);
+                        };
+                    }
+                    InfoType::Disk => {
+                        log::info!("upload disk info");
+                    }
+                    InfoType::Network => {
+                        log::info!("upload network info");
+                    }
+                },
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn upload_system_info() -> anyhow::Result<()> {
+    let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
+    let system = host::system()?;
+    let host_req = HostReq {
+        system: Some(system),
+    };
+    let rsp = client.host(host_req).await?;
+    log::info!("host rsp: {rsp:?}");
+    Ok(())
 }

@@ -1,5 +1,6 @@
 use crate::proto::{
-    Empty, HeartbeatRsp, HostReq, RegisterReq, RegisterRsp, z11n_service_server::Z11nService,
+    Empty, HeartbeatRsp, HostReq, RegisterReq, RegisterRsp, UploadHost, heartbeat_rsp::Task,
+    upload_host::InfoType, z11n_service_server::Z11nService,
 };
 use entity::{tbl_agent, tbl_host};
 use moka::sync::Cache;
@@ -87,16 +88,28 @@ impl Z11nService for Z11nServer {
         }
         let (tx, rx) = mpsc::channel(10);
 
-        let cmd_content = format!("agent_id: {}, token: {}", agent_id, token);
         tokio::spawn(async move {
-            for i in 0..2 {
-                let response = HeartbeatRsp {
-                    cmd_type: i % 2,
-                    cmd_content: cmd_content.clone(),
-                };
-                log::info!("send response: {:?}", response);
-                tx.send(Ok(response)).await.unwrap();
-                tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+            let ts = chrono::Utc::now().timestamp_millis();
+            let heartbeat_rsp = match ts % 10 {
+                1 => HeartbeatRsp {
+                    task: Some(Task::UploadHost(UploadHost {
+                        info_type: InfoType::System.into(),
+                    })),
+                },
+                2 => HeartbeatRsp {
+                    task: Some(Task::UploadHost(UploadHost {
+                        info_type: InfoType::Disk.into(),
+                    })),
+                },
+                3 => HeartbeatRsp {
+                    task: Some(Task::UploadHost(UploadHost {
+                        info_type: InfoType::Network.into(),
+                    })),
+                },
+                _ => HeartbeatRsp { task: None },
+            };
+            if let Err(e) = tx.send(Ok(heartbeat_rsp)).await {
+                log::error!("tx send err: {}", e);
             }
         });
         Ok(Response::new(ReceiverStream::new(rx)))

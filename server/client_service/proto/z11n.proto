@@ -10,17 +10,18 @@ service Z11nService {
 message Empty {}
 
 message HeartbeatRsp {
-    // 指令类型枚举
-    enum CmdType {
-        // 啥也不干
-        NOTHING = 0;
-        // 打印日志
-        PRINT = 1;
+    oneof task {
+        UploadHost upload_host = 1;
     }
-    // 指令类型
-    CmdType cmd_type = 1;
-    // 指令内容
-    string cmd_content = 2;
+}
+
+message UploadHost {
+    enum InfoType {
+        SYSTEM = 0;
+        DISK = 1;
+        NETWORK = 2;
+    }
+    InfoType info_type = 1;
 }
 
 // 心跳消息请求结构体
@@ -50,12 +51,20 @@ message SystemInfo {
     string kernel_long_version = 6;
     uint64 total_memory = 7;
     uint64 total_swap = 8;
-    repeated Process processes = 9;
+    repeated ProcessInfo processes = 9;
 }
 
-message Process {
+message ProcessInfo {
     uint32 pid = 1;
     string name = 2;
     optional string exe = 3;
     string status = 4;
+}
+
+message DiskInfo {
+
+}
+
+message NetworkInfo {
+
 }
