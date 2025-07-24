@@ -5,6 +5,7 @@ use client_service::{
     server::{Z11nInterceptor, Z11nServer},
 };
 use migration::{Migrator, MigratorTrait};
+use rustls::crypto::{CryptoProvider, ring};
 use sea_orm::Database;
 use std::{
     fs::{self, File},
@@ -20,6 +21,10 @@ use tonic::{
 async fn main() -> anyhow::Result<()> {
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
     log::info!("client service starting");
+
+    CryptoProvider::install_default(ring::default_provider())
+        .expect("failed to install CryptoProvider");
+
     let db_dir = Path::new("../db");
     if !db_dir.exists() {
         fs::create_dir_all(db_dir)?;

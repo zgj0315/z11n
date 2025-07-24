@@ -12,7 +12,7 @@
   "dependencies": {
     "@ant-design/charts": "^2.6.0",
     "antd": "^5.26.4",
-    "axios": "^1.10.0",
+    "axios": "^1.11.0",
     "dayjs": "^1.11.13",
     "pdfjs-dist": "^5.3.31",
     "react": "^19.1.0",

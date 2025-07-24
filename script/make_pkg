@@ -6,8 +6,13 @@ set -x
 cd "$(dirname "${0}")" || exit
 cd ../
 
+# clean
 rm -rf z11n_server.tar.gz
 rm -rf z11n_server
+rm -rf z11n_client.tar.gz
+rm -rf z11n_client
+
+# make dir
 mkdir -p z11n_server/db
 mkdir -p z11n_server/client_service/bin
 mkdir -p z11n_server/client_service/config
@@ -17,6 +22,10 @@ mkdir -p z11n_server/ui_service/bin
 mkdir -p z11n_server/ui_service/config
 mkdir -p z11n_server/ui_service/log
 mkdir -p z11n_server/ui_service/html
+
+mkdir -p z11n_client/agent_service/bin
+mkdir -p z11n_client/agent_service/config
+mkdir -p z11n_client/agent_service/log
 
 # build server
 cd server
@@ -41,7 +50,24 @@ chmod +x z11n_server/ui_service/bin/*
 cp server/ui_service/config/* z11n_server/ui_service/config
 cp -r server/ui_web/dist/* z11n_server/ui_service/html
 
-# tar pkg
+# tar server pkg
 tar --disable-copyfile -zcvf z11n_server.tar.gz z11n_server
 rm -rf z11n_server
 echo "make z11n_server.tar.gz success"
+
+# build client
+cd client
+cargo update
+cargo zigbuild -r --target=x86_64-unknown-linux-musl
+cd ../
+
+# agent_service
+cp client/target/x86_64-unknown-linux-musl/release/agent_service z11n_client/agent_service/bin/
+cp script/service z11n_client/agent_service/bin/
+chmod +x z11n_client/agent_service/bin/*
+cp client/agent_service/config/* z11n_client/agent_service/config
+
+# tar client pkg
+tar --disable-copyfile -zcvf z11n_client.tar.gz z11n_client
+rm -rf z11n_client
+echo "make z11n_client.tar.gz success"

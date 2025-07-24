@@ -46,8 +46,9 @@ sea-orm 操作 tbl_agent
 - [ ] 前端国际化方案调研
 - [ ] 调研 handlebars 实现kv内容的显示
 - [ ] 更新主机信息
-- [ ] 系统安装包制作脚本
 - [ ] 系统升级（升级包制作，上传升级包+升级动作）
+### 20250724
+- [x] 系统安装包制作脚本
 ### 20250723
 - [x] agent register
 - [x] migration and entity init
