@@ -17,7 +17,7 @@ pub async fn connect_uds(sled_db: sled::Db) -> anyhow::Result<()> {
                                     continue;
                                 }
                             };
-                        match sled_db.get(&agent_id) {
+                        match sled_db.remove(&agent_id) {
                             Ok(op) => match op {
                                 Some(encoded) => {
                                     let (mut heartbeat_rsp_encodeds, _len): (Vec<Vec<u8>>, usize) =

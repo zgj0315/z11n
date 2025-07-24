@@ -90,11 +90,8 @@ impl Z11nService for Z11nServer {
         let sled_db_clone = self.sled_db.clone();
         let agent_id = agent_id.to_string();
         tokio::spawn(async move {
-            match sled_db_clone.get(&agent_id) {
+            match sled_db_clone.remove(&agent_id) {
                 Ok(op) => {
-                    if let Err(e) = sled_db_clone.remove(agent_id) {
-                        log::error!("sled_db.remove err: {}", e);
-                    }
                     if let Some(encoded) = op {
                         let (heartbeat_rsp_encodeds, _len): (Vec<Vec<u8>>, usize) =
                             match bincode::decode_from_slice(
