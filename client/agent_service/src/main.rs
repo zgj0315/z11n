@@ -118,6 +118,8 @@ async fn upload_system_info() -> anyhow::Result<()> {
     let system = host::system()?;
     let host_req = HostReq {
         system: Some(system),
+        disk: None,
+        network: None,
     };
     let rsp = client.host(host_req).await?;
     log::info!("host rsp: {rsp:?}");

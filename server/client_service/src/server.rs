@@ -87,7 +87,6 @@ impl Z11nService for Z11nServer {
             }
         }
         let (tx, rx) = mpsc::channel(10);
-
         tokio::spawn(async move {
             let ts = chrono::Utc::now().timestamp_millis();
             let heartbeat_rsp = match ts % 10 {
@@ -176,19 +175,32 @@ impl Z11nService for Z11nServer {
     async fn host(&self, req: Request<HostReq>) -> Result<Response<Empty>, Status> {
         let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
         let host_req = req.get_ref();
-        if let Some(system) = &host_req.system {
-            match tbl_host::Entity::find_by_id(agent_id)
-                .one(&self.db_conn)
-                .await
-            {
-                Ok(tbl_host_op) => match tbl_host_op {
-                    Some(tbl_host) => {
-                        let mut tbl_host_am = tbl_host.into_active_model();
+
+        match tbl_host::Entity::find_by_id(agent_id)
+            .one(&self.db_conn)
+            .await
+        {
+            Ok(tbl_host_op) => match tbl_host_op {
+                // 数据里有
+                Some(tbl_host) => {
+                    let mut host_req_db = match HostReq::decode(&*tbl_host.content) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log::error!("HostReq decode err: {}", e);
+                            HostReq::default()
+                        }
+                    };
+
+                    if let Some(system) = &host_req.system {
+                        host_req_db.system = Some(system.clone());
+
+                        let mut tbl_host_am = tbl_host.clone().into_active_model();
                         tbl_host_am.name = Set(system.name.clone());
                         tbl_host_am.host_name = Set(system.host_name.clone());
                         tbl_host_am.os_version = Set(system.os_version.clone());
                         tbl_host_am.cpu_arch = Set(system.cpu_arch.clone());
-                        tbl_host_am.content = Set(host_req.encode_to_vec());
+                        tbl_host_am.content = Set(host_req_db.encode_to_vec());
+                        tbl_host_am.updated_at = Set(chrono::Utc::now().naive_utc());
                         if let Err(e) = tbl_host_am.save(&self.db_conn).await {
                             log::error!("tbl_host save err: {}", e);
                             return Err(tonic::Status::new(
@@ -197,7 +209,38 @@ impl Z11nService for Z11nServer {
                             ));
                         }
                     }
-                    None => {
+                    if let Some(disk) = &host_req.disk {
+                        host_req_db.disk = Some(disk.clone());
+
+                        let mut tbl_host_am = tbl_host.clone().into_active_model();
+                        tbl_host_am.content = Set(host_req_db.encode_to_vec());
+                        tbl_host_am.updated_at = Set(chrono::Utc::now().naive_utc());
+                        if let Err(e) = tbl_host_am.save(&self.db_conn).await {
+                            log::error!("tbl_host save err: {}", e);
+                            return Err(tonic::Status::new(
+                                tonic::Code::Internal,
+                                "tbl_host save err".to_string(),
+                            ));
+                        }
+                    }
+                    if let Some(network) = &host_req.network {
+                        host_req_db.network = Some(network.clone());
+
+                        let mut tbl_host_am = tbl_host.into_active_model();
+                        tbl_host_am.content = Set(host_req_db.encode_to_vec());
+                        tbl_host_am.updated_at = Set(chrono::Utc::now().naive_utc());
+                        if let Err(e) = tbl_host_am.save(&self.db_conn).await {
+                            log::error!("tbl_host save err: {}", e);
+                            return Err(tonic::Status::new(
+                                tonic::Code::Internal,
+                                "tbl_host save err".to_string(),
+                            ));
+                        }
+                    }
+                }
+                // 数据库里没有
+                None => {
+                    if let Some(system) = &host_req.system {
                         let tbl_host_am = tbl_host::ActiveModel {
                             agent_id: Set(agent_id.to_string()),
                             name: Set(system.name.clone()),
@@ -217,18 +260,38 @@ impl Z11nService for Z11nServer {
                                 "tbl_host insert err".to_string(),
                             ));
                         }
+                    } else {
+                        let tbl_host_am = tbl_host::ActiveModel {
+                            agent_id: Set(agent_id.to_string()),
+                            name: Set(None),
+                            host_name: Set(None),
+                            os_version: Set(None),
+                            cpu_arch: Set("".to_string()),
+                            content: Set(host_req.encode_to_vec()),
+                            ..Default::default()
+                        };
+                        if let Err(e) = tbl_host::Entity::insert(tbl_host_am)
+                            .exec(&self.db_conn)
+                            .await
+                        {
+                            log::error!("tbl_host insert err: {}", e);
+                            return Err(tonic::Status::new(
+                                tonic::Code::Internal,
+                                "tbl_host insert err".to_string(),
+                            ));
+                        }
                     }
-                },
-                Err(e) => {
-                    log::error!("tbl_host find by id err: {}", e);
-                    return Err(tonic::Status::new(
-                        tonic::Code::Internal,
-                        "tbl_host find by id err".to_string(),
-                    ));
                 }
+            },
+            Err(e) => {
+                log::error!("tbl_host find by id err: {}", e);
+                return Err(tonic::Status::new(
+                    tonic::Code::Internal,
+                    "tbl_host find by id err".to_string(),
+                ));
             }
-            log::info!("save host success");
         }
+        log::info!("save host success");
         Ok(Response::new(Empty {}))
     }
 }

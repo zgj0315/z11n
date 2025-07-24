@@ -40,6 +40,8 @@ message RegisterRsp {
 
 message HostReq {
     SystemInfo system = 1;
+    DiskInfo disk = 2;
+    NetworkInfo network = 3;    
 }
 
 message SystemInfo {
