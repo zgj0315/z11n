@@ -50,7 +50,7 @@ sea-orm 操作 tbl_agent
 ### 20250724
 - [x] 系统安装包制作脚本
 - [x] 支持上传多种主机信息
-- [ ] disk and network
+- [x] disk and network
 ### 20250723
 - [x] agent register
 - [x] migration and entity init
