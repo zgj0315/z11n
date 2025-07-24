@@ -90,10 +90,10 @@ pub struct RegisterRsp {
 pub struct HostReq {
     #[prost(message, optional, tag = "1")]
     pub system: ::core::option::Option<SystemInfo>,
-    #[prost(message, optional, tag = "2")]
-    pub disk: ::core::option::Option<DiskInfo>,
-    #[prost(message, optional, tag = "3")]
-    pub network: ::core::option::Option<NetworkInfo>,
+    #[prost(message, repeated, tag = "2")]
+    pub disks: ::prost::alloc::vec::Vec<DiskInfo>,
+    #[prost(message, repeated, tag = "3")]
+    pub networks: ::prost::alloc::vec::Vec<NetworkInfo>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -130,8 +130,34 @@ pub struct ProcessInfo {
     pub status: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct DiskInfo {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DiskInfo {
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub file_system: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub mount_point: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub kind: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "5")]
+    pub total_space: u64,
+    #[prost(uint64, tag = "6")]
+    pub available_space: u64,
+    #[prost(bool, tag = "7")]
+    pub is_removable: bool,
+    #[prost(bool, tag = "8")]
+    pub is_read_only: bool,
+}
 #[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct NetworkInfo {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct NetworkInfo {
+    #[prost(string, tag = "1")]
+    pub interface_name: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "2")]
+    pub total_received: u64,
+    #[prost(uint64, tag = "3")]
+    pub total_transmitted: u64,
+    #[prost(string, repeated, tag = "4")]
+    pub addrs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}

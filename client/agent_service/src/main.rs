@@ -72,7 +72,10 @@ async fn main() -> anyhow::Result<()> {
             log::error!("consume_heartbeat_rsp err: {}", e);
         }
     });
-    heartbeat(tx_heartbeat_rsp).await?;
+
+    if let Err(e) = heartbeat(tx_heartbeat_rsp.clone()).await {
+        log::error!("heartbeat api err: {}", e);
+    }
     Ok(())
 }
 
