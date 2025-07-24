@@ -1,0 +1,47 @@
+#!/bin/bash
+# Created by zhaogj on 20240528
+set -o errexit
+set -x
+
+cd "$(dirname "${0}")" || exit
+cd ../
+
+rm -rf z11n_server.tar.gz
+rm -rf z11n_server
+mkdir -p z11n_server/db
+mkdir -p z11n_server/client_service/bin
+mkdir -p z11n_server/client_service/config
+mkdir -p z11n_server/client_service/log
+
+mkdir -p z11n_server/ui_service/bin
+mkdir -p z11n_server/ui_service/config
+mkdir -p z11n_server/ui_service/log
+mkdir -p z11n_server/ui_service/html
+
+# build server
+cd server
+cargo update
+cargo zigbuild -r --target=x86_64-unknown-linux-musl
+cd ui_web
+npm install
+npm run build
+cd ../../
+
+# make pkg
+# client_service
+cp server/target/x86_64-unknown-linux-musl/release/client_service z11n_server/client_service/bin/
+cp script/service z11n_server/client_service/bin/
+chmod +x z11n_server/client_service/bin/*
+cp server/client_service/config/* z11n_server/client_service/config
+
+# ui_service
+cp server/target/x86_64-unknown-linux-musl/release/ui_service z11n_server/ui_service/bin/
+cp script/service z11n_server/ui_service/bin/
+chmod +x z11n_server/ui_service/bin/*
+cp server/ui_service/config/* z11n_server/ui_service/config
+cp -r server/ui_web/dist/* z11n_server/ui_service/html
+
+# tar pkg
+tar --disable-copyfile -zcvf z11n_server.tar.gz z11n_server
+rm -rf z11n_server
+echo "make z11n_server.tar.gz success"
