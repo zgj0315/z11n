@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
         log::info!("create dir: {}", db_dir.to_string_lossy());
     }
 
-    let db_path = db_dir.join("z11n.sqlite");
+    let db_path = Path::new(pub_lib::DB_PATH);
     if !db_path.exists() {
         File::create(&db_path)?;
         log::info!("create file: {}", db_path.to_string_lossy());

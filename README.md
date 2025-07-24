@@ -51,6 +51,7 @@ sea-orm 操作 tbl_agent
 - [x] 系统安装包制作脚本
 - [x] 支持上传多种主机信息
 - [x] disk and network
+- [ ] ui_service 与 client_service 通信
 ### 20250723
 - [x] agent register
 - [x] migration and entity init
