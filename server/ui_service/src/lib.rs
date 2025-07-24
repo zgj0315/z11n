@@ -13,5 +13,5 @@ pub mod z11n;
 pub struct AppState {
     pub db_conn: DatabaseConnection,
     pub sled_db: sled::Db,
-    pub tx_heartbeat_rsp: broadcast::Sender<HeartbeatRsp>,
+    pub tx_heartbeat_rsp: broadcast::Sender<(String, HeartbeatRsp)>,
 }

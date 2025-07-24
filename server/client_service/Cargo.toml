@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0.98"
+bincode = "2.0.1"
 chrono = "0.4.41"
 config = "0.15.13"
 entity = {path = "../entity"}
@@ -23,6 +24,7 @@ sea-orm = {version = "1.1.14", features = [
   "macros",
 ]}
 serde = {version = "1.0.219", features = ["derive"]}
+sled = "0.34.7"
 tokio = {version = "1.46.1", features = [
   "macros",
   "rt-multi-thread",

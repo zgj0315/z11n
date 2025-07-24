@@ -3,6 +3,7 @@ use client_service::{
     config::CLIENT_SERVICE_TOML,
     proto::z11n_service_server::Z11nServiceServer,
     server::{Z11nInterceptor, Z11nServer},
+    uds,
 };
 use migration::{Migrator, MigratorTrait};
 use rustls::crypto::{CryptoProvider, ring};
@@ -43,11 +44,25 @@ async fn main() -> anyhow::Result<()> {
 
     Migrator::up(&db_conn, None).await?;
 
+    let sled_dir = Path::new("./data");
+    if !sled_dir.exists() {
+        fs::create_dir_all(sled_dir)?;
+        log::info!("create dir: {}", sled_dir.to_string_lossy());
+    }
+    let sled_path = sled_dir.join("sled_db");
+    let sled_db = sled::open(sled_path)?;
+    let sled_db_clone = sled_db.clone();
+    tokio::spawn(async move {
+        if let Err(e) = uds::connect_uds(sled_db_clone).await {
+            log::error!("uds::connect_uds err: {}", e);
+        }
+    });
     let online_agent_cache = agent::init_cache(&db_conn).await?;
 
     let server = Z11nServer {
         db_conn,
         online_agent_cache,
+        sled_db,
     };
     let service = Z11nServiceServer::new(server)
         .send_compressed(CompressionEncoding::Gzip)

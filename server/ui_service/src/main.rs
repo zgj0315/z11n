@@ -45,8 +45,8 @@ async fn main() -> anyhow::Result<()> {
 
     let (tx_heartbeat_rsp, mut rx_heartbeat_rsp) = broadcast::channel(1_000);
     tokio::spawn(async move {
-        while let Ok(heartbeat_rsp) = rx_heartbeat_rsp.recv().await {
-            log::info!("got heartbeat_rsp: {:?}", heartbeat_rsp);
+        while let Ok((agent_id, heartbeat_rsp)) = rx_heartbeat_rsp.recv().await {
+            log::info!("got {agent_id} heartbeat_rsp: {heartbeat_rsp:?}");
         }
     });
     let tx_heartbeat_rsp_clone = tx_heartbeat_rsp.clone();

@@ -6,7 +6,9 @@ use tokio::{
     net::{UnixListener, UnixStream},
 };
 
-pub async fn listen_uds(tx_heartbeat_rsp: broadcast::Sender<HeartbeatRsp>) -> anyhow::Result<()> {
+pub async fn listen_uds(
+    tx_heartbeat_rsp: broadcast::Sender<(String, HeartbeatRsp)>,
+) -> anyhow::Result<()> {
     let unix_listener = UnixListener::bind(pub_lib::UDS_PATH)?;
     loop {
         match unix_listener.accept().await {
@@ -25,7 +27,7 @@ pub async fn listen_uds(tx_heartbeat_rsp: broadcast::Sender<HeartbeatRsp>) -> an
 
 async fn consume_unix_stream(
     mut unix_stream: UnixStream,
-    mut rx_heartbeat_rsp: broadcast::Receiver<HeartbeatRsp>,
+    mut rx_heartbeat_rsp: broadcast::Receiver<(String, HeartbeatRsp)>,
 ) -> anyhow::Result<()> {
     loop {
         let mut buf = vec![0; 1024];
@@ -40,8 +42,18 @@ async fn consume_unix_stream(
                 log::error!("unix_stream.read err: {}", e);
             }
         }
-        while let Ok(heartbeat_rsp) = rx_heartbeat_rsp.recv().await {
-            if let Err(e) = unix_stream.write_all(&heartbeat_rsp.encode_to_vec()).await {
+        while let Ok((agent_id, heartbeat_rsp)) = rx_heartbeat_rsp.recv().await {
+            let encoded: Vec<u8> = match bincode::encode_to_vec(
+                &(agent_id, heartbeat_rsp.encode_to_vec()),
+                bincode::config::standard(),
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    log::error!("bincode::encode_to_vec err: {}", e);
+                    continue;
+                }
+            };
+            if let Err(e) = unix_stream.write_all(&encoded).await {
                 log::error!("unix_stream.write_all err: {}", e);
             };
             log::info!("send to client_service: {:?}", heartbeat_rsp);

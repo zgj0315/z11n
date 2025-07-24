@@ -1,6 +1,5 @@
 use crate::proto::{
-    Empty, HeartbeatRsp, HostReq, RegisterReq, RegisterRsp, UploadHost, heartbeat_rsp::Task,
-    upload_host::InfoType, z11n_service_server::Z11nService,
+    Empty, HeartbeatRsp, HostReq, RegisterReq, RegisterRsp, z11n_service_server::Z11nService,
 };
 use entity::{tbl_agent, tbl_host};
 use moka::sync::Cache;
@@ -56,6 +55,7 @@ fn extract_metadata_value<'a>(metadata: &'a MetadataMap, key: &str) -> Result<&'
 pub struct Z11nServer {
     pub db_conn: DatabaseConnection,
     pub online_agent_cache: Cache<String, String>,
+    pub sled_db: sled::Db,
 }
 
 #[tonic::async_trait]
@@ -87,28 +87,39 @@ impl Z11nService for Z11nServer {
             }
         }
         let (tx, rx) = mpsc::channel(10);
+        let sled_db_clone = self.sled_db.clone();
+        let agent_id = agent_id.to_string();
         tokio::spawn(async move {
-            let ts = chrono::Utc::now().timestamp_millis();
-            let heartbeat_rsp = match ts % 5 {
-                1 => HeartbeatRsp {
-                    task: Some(Task::UploadHost(UploadHost {
-                        info_type: InfoType::System.into(),
-                    })),
-                },
-                2 => HeartbeatRsp {
-                    task: Some(Task::UploadHost(UploadHost {
-                        info_type: InfoType::Disk.into(),
-                    })),
-                },
-                3 => HeartbeatRsp {
-                    task: Some(Task::UploadHost(UploadHost {
-                        info_type: InfoType::Network.into(),
-                    })),
-                },
-                _ => HeartbeatRsp { task: None },
-            };
-            if let Err(e) = tx.send(Ok(heartbeat_rsp)).await {
-                log::error!("tx send err: {}", e);
+            match sled_db_clone.get(&agent_id) {
+                Ok(op) => {
+                    if let Err(e) = sled_db_clone.remove(agent_id) {
+                        log::error!("sled_db.remove err: {}", e);
+                    }
+                    if let Some(encoded) = op {
+                        let (heartbeat_rsp_encodeds, _len): (Vec<Vec<u8>>, usize) =
+                            match bincode::decode_from_slice(
+                                &encoded[..],
+                                bincode::config::standard(),
+                            ) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    log::error!("bincode::decode_from_slice err: {}", e);
+                                    return;
+                                }
+                            };
+                        for heartbeat_rsp_encoded in heartbeat_rsp_encodeds {
+                            if let Ok(heartbeat_rsp) = HeartbeatRsp::decode(&*heartbeat_rsp_encoded)
+                            {
+                                if let Err(e) = tx.send(Ok(heartbeat_rsp)).await {
+                                    log::error!("tx send err: {}", e);
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::error!("sled_db.get err: {}", e);
+                }
             }
         });
         Ok(Response::new(ReceiverStream::new(rx)))
