@@ -7,7 +7,7 @@ pub enum AgentState {
 }
 
 pub const DB_PATH: &str = "../db/z11n.sqlite";
-pub const SOCKET_PATH: &str = "../db/socket";
+pub const UDS_PATH: &str = "../db/uds";
 
 #[cfg(test)]
 mod tests {

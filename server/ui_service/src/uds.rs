@@ -1,0 +1,50 @@
+use crate::z11n::HeartbeatRsp;
+use prost::Message;
+use tokio::sync::broadcast;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::{UnixListener, UnixStream},
+};
+
+pub async fn listen_uds(tx_heartbeat_rsp: broadcast::Sender<HeartbeatRsp>) -> anyhow::Result<()> {
+    let unix_listener = UnixListener::bind(pub_lib::UDS_PATH)?;
+    loop {
+        match unix_listener.accept().await {
+            Ok((unix_stream, socket_addr)) => {
+                log::info!("unix listener accept socket addr: {:?}", socket_addr);
+                let rx_heartbeat_rsp = tx_heartbeat_rsp.subscribe();
+                tokio::spawn(consume_unix_stream(unix_stream, rx_heartbeat_rsp));
+            }
+            Err(e) => {
+                log::error!("unix listener accept err: {}", e);
+                continue;
+            }
+        }
+    }
+}
+
+async fn consume_unix_stream(
+    mut unix_stream: UnixStream,
+    mut rx_heartbeat_rsp: broadcast::Receiver<HeartbeatRsp>,
+) -> anyhow::Result<()> {
+    loop {
+        let mut buf = vec![0; 1024];
+        match unix_stream.read(&mut buf).await {
+            Ok(n) => {
+                log::info!(
+                    "receive from client_service: {}",
+                    String::from_utf8_lossy(&buf[..n])
+                );
+            }
+            Err(e) => {
+                log::error!("unix_stream.read err: {}", e);
+            }
+        }
+        while let Ok(heartbeat_rsp) = rx_heartbeat_rsp.recv().await {
+            if let Err(e) = unix_stream.write_all(&heartbeat_rsp.encode_to_vec()).await {
+                log::error!("unix_stream.write_all err: {}", e);
+            };
+            log::info!("send to client_service: {:?}", heartbeat_rsp);
+        }
+    }
+}

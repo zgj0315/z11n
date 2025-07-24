@@ -11,12 +11,14 @@ use axum_server::tls_rustls::RustlsConfig;
 use migration::{Migrator, MigratorTrait};
 use rustls::crypto;
 use sea_orm::Database;
+use tokio::sync::broadcast;
 use tower_http::services::{ServeDir, ServeFile};
 use ui_service::{
     AppState, agent,
     auth::{self, RequireAuth},
     config::UI_SERVICE_TOML,
     host,
+    uds::listen_uds,
 };
 
 #[tokio::main]
@@ -41,9 +43,25 @@ async fn main() -> anyhow::Result<()> {
 
     Migrator::up(&db_conn, None).await?;
 
+    let (tx_heartbeat_rsp, mut rx_heartbeat_rsp) = broadcast::channel(1_000);
+    tokio::spawn(async move {
+        while let Ok(heartbeat_rsp) = rx_heartbeat_rsp.recv().await {
+            log::info!("got heartbeat_rsp: {:?}", heartbeat_rsp);
+        }
+    });
+    let tx_heartbeat_rsp_clone = tx_heartbeat_rsp.clone();
+    tokio::spawn(async move {
+        if let Err(e) = listen_uds(tx_heartbeat_rsp_clone).await {
+            log::error!("listen uds err: {}", e);
+        }
+    });
     let sled_db = sled::open("../db/sled_db")?;
     auth::token_expired_task(sled_db.clone()).await?;
-    let app_state = AppState { db_conn, sled_db };
+    let app_state = AppState {
+        db_conn,
+        sled_db,
+        tx_heartbeat_rsp,
+    };
     let dist_path = if Path::new("../ui_web/dist").exists() {
         // 工程目录
         "../ui_web/dist"
