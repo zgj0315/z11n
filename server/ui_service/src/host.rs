@@ -173,14 +173,36 @@ async fn upload(
             info_type: InfoType::System.into(),
         })),
     };
-    match app_state
+    if let Err(e) = app_state
+        .tx_heartbeat_rsp
+        .send((upload_input_dto.agent_id.clone(), heartbeat_rsp))
+    {
+        log::error!("tx_heartbeat_rsp.send err: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+    let heartbeat_rsp = HeartbeatRsp {
+        task: Some(Task::UploadHost(UploadHost {
+            info_type: InfoType::Disk.into(),
+        })),
+    };
+    if let Err(e) = app_state
+        .tx_heartbeat_rsp
+        .send((upload_input_dto.agent_id.clone(), heartbeat_rsp))
+    {
+        log::error!("tx_heartbeat_rsp.send err: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+    let heartbeat_rsp = HeartbeatRsp {
+        task: Some(Task::UploadHost(UploadHost {
+            info_type: InfoType::Network.into(),
+        })),
+    };
+    if let Err(e) = app_state
         .tx_heartbeat_rsp
         .send((upload_input_dto.agent_id, heartbeat_rsp))
     {
-        Ok(_) => StatusCode::OK.into_response(),
-        Err(e) => {
-            log::error!("tx_heartbeat_rsp.send err: {}", e);
-            StatusCode::OK.into_response()
-        }
+        log::error!("tx_heartbeat_rsp.send err: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
+    StatusCode::OK.into_response()
 }
