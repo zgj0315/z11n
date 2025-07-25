@@ -1,4 +1,7 @@
-use crate::{AppState, z11n::HostReq};
+use crate::{
+    AppState,
+    z11n::{HeartbeatRsp, HostReq, UploadHost, heartbeat_rsp::Task, upload_host::InfoType},
+};
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
@@ -15,7 +18,7 @@ use validator::Validate;
 
 pub fn routers(state: AppState) -> Router {
     Router::new()
-        .route("/hosts", get(query))
+        .route("/hosts", get(query).post(upload))
         .route("/hosts/{id}", get(detail).delete(delete))
         .with_state(state)
 }
@@ -153,6 +156,31 @@ async fn delete(Path(id): Path<String>, State(app_state): State<AppState>) -> im
         Err(e) => {
             log::error!("delete host {id} db err: {e}");
             StatusCode::INTERNAL_SERVER_ERROR
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Validate)]
+struct UploadInputDto {
+    agent_id: String,
+}
+async fn upload(
+    app_state: State<AppState>,
+    Json(upload_input_dto): Json<UploadInputDto>,
+) -> impl IntoResponse {
+    let heartbeat_rsp = HeartbeatRsp {
+        task: Some(Task::UploadHost(UploadHost {
+            info_type: InfoType::System.into(),
+        })),
+    };
+    match app_state
+        .tx_heartbeat_rsp
+        .send((upload_input_dto.agent_id, heartbeat_rsp))
+    {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => {
+            log::error!("tx_heartbeat_rsp.send err: {}", e);
+            StatusCode::OK.into_response()
         }
     }
 }
