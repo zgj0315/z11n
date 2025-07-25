@@ -1,6 +1,6 @@
 [package]
 edition = "2024"
-name = "agent_service"
+name = "z11n_agent"
 version = "0.1.0"
 
 [dependencies]

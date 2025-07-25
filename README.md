@@ -2,9 +2,9 @@
 ## 1 概述
 系统整体架构：Client + Server, Browser + Server
 ## 2 模块说明
-### 2.1 client/agent_service
+### 2.1 client/z11n_agent
 独立Agent，独立安装部署
-### 2.2 client/sdk_service
+### 2.2 client/z11n_sdk
 被集成sdk，依附于三方应用
 ### 2.3 server/client_service
 提供 Client 的通信接口
@@ -81,7 +81,7 @@ cd server/client_service
 cargo watch -x run
 
 # 启动客户端发送模块
-cd client/agent_service
+cd client/z11n_agent
 cargo run
 
 # 启动 RESTful API 模块

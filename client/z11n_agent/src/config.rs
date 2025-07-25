@@ -1,9 +1,9 @@
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
-pub static AGENT_SERVICE_TOML: Lazy<ServerToml> = Lazy::new(|| {
+pub static Z11N_AGENT_TOML: Lazy<ServerToml> = Lazy::new(|| {
     config::Config::builder()
-        .add_source(config::File::with_name("./config/agent_service.toml"))
+        .add_source(config::File::with_name("./config/z11n_agent.toml"))
         .build()
         .unwrap()
         .try_deserialize::<ServerToml>()

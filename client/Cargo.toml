@@ -2,6 +2,6 @@
 resolver = "2"
 
 members = [
-  "agent_service",
-  "sdk_service",
+  "z11n_agent",
+  "z11n_sdk",
 ]

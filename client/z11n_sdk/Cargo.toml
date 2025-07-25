@@ -1,6 +1,6 @@
 [package]
-name = "sdk_service"
-version = "0.1.0"
 edition = "2024"
+name = "z11n_sdk"
+version = "0.1.0"
 
 [dependencies]

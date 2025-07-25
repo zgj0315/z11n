@@ -5,19 +5,19 @@ use std::{
     thread,
 };
 
-use agent_service::{
-    AGENT_ID_TOKEN,
-    config::AGENT_SERVICE_TOML,
-    host,
-    proto::{
-        Empty, HeartbeatRsp, HostReq, RegisterReq, heartbeat_rsp::Task, upload_host::InfoType,
-    },
-};
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use rustls::crypto::{CryptoProvider, ring};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
+use z11n_agent::{
+    AGENT_ID_TOKEN,
+    config::Z11N_AGENT_TOML,
+    host,
+    proto::{
+        Empty, HeartbeatRsp, HostReq, RegisterReq, heartbeat_rsp::Task, upload_host::InfoType,
+    },
+};
 static HOST_INFO: OnceCell<RwLock<HostReq>> = OnceCell::new();
 
 #[tokio::main]
@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     CryptoProvider::install_default(ring::default_provider())
         .expect("failed to install CryptoProvider");
 
-    let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
+    let mut client = z11n_agent::build_client(&Z11N_AGENT_TOML.server.addr).await?;
 
     if let Err(e) = AGENT_ID_TOKEN.set(RwLock::new((agent_id.clone(), "".to_string()))) {
         log::error!("AGENT_ID_TOKEN set err: {:?}", e);
@@ -87,7 +87,7 @@ async fn heartbeat(tx_heartbeat_rsp: mpsc::Sender<HeartbeatRsp>) -> anyhow::Resu
     loop {
         interval.tick().await;
         // log::info!("heartbeat start");
-        let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
+        let mut client = z11n_agent::build_client(&Z11N_AGENT_TOML.server.addr).await?;
         let req = Empty {};
         let rsp = client.heartbeat(req).await?;
         let mut stream = rsp.into_inner();
@@ -111,8 +111,7 @@ async fn consume_req(mut rx_req: mpsc::Receiver<Req>) -> anyhow::Result<()> {
     while let Some(req) = rx_req.recv().await {
         match req {
             Req::HostReq(host_req) => {
-                let mut client =
-                    agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
+                let mut client = z11n_agent::build_client(&Z11N_AGENT_TOML.server.addr).await?;
                 if let Err(e) = client.host(host_req).await {
                     log::error!("host api err: {}", e);
                 }

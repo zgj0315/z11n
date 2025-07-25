@@ -25,9 +25,9 @@ mkdir -p z11n_server/ui_service/log
 mkdir -p z11n_server/ui_service/data
 mkdir -p z11n_server/ui_service/html
 
-mkdir -p z11n_client/agent_service/bin
-mkdir -p z11n_client/agent_service/config
-mkdir -p z11n_client/agent_service/log
+mkdir -p z11n_client/z11n_agent/bin
+mkdir -p z11n_client/z11n_agent/config
+mkdir -p z11n_client/z11n_agent/log
 
 # build server
 cd server
@@ -63,11 +63,11 @@ cargo update
 cargo zigbuild -r --target=x86_64-unknown-linux-musl
 cd ../
 
-# agent_service
-cp client/target/x86_64-unknown-linux-musl/release/agent_service z11n_client/agent_service/bin/
-cp script/service z11n_client/agent_service/bin/
-chmod +x z11n_client/agent_service/bin/*
-cp client/agent_service/config/* z11n_client/agent_service/config
+# z11n_agent
+cp client/target/x86_64-unknown-linux-musl/release/z11n_agent z11n_client/z11n_agent/bin/
+cp script/service z11n_client/z11n_agent/bin/
+chmod +x z11n_client/z11n_agent/bin/*
+cp client/z11n_agent/config/* z11n_client/z11n_agent/config
 
 # tar client pkg
 tar --disable-copyfile -zcvf z11n_client.tar.gz z11n_client
