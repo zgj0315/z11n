@@ -168,6 +168,7 @@ async fn upload(
     app_state: State<AppState>,
     Json(upload_input_dto): Json<UploadInputDto>,
 ) -> impl IntoResponse {
+    // for _ in 0..10 {
     let heartbeat_rsp = HeartbeatRsp {
         task: Some(Task::UploadHost(UploadHost {
             info_type: InfoType::System.into(),
@@ -199,10 +200,11 @@ async fn upload(
     };
     if let Err(e) = app_state
         .tx_heartbeat_rsp
-        .send((upload_input_dto.agent_id, heartbeat_rsp))
+        .send((upload_input_dto.agent_id.clone(), heartbeat_rsp))
     {
         log::error!("tx_heartbeat_rsp.send err: {}", e);
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
+    // }
     StatusCode::OK.into_response()
 }

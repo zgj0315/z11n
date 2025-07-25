@@ -85,7 +85,9 @@ pub async fn connect_uds(sled_db: sled::Db) -> anyhow::Result<()> {
                                         );
                                     }
                                 },
-                                Err(_) => todo!(),
+                                Err(e) => {
+                                    log::error!("sled.remove err: {}", e);
+                                }
                             }
                         }
                         Err(e) => {
