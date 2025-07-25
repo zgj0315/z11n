@@ -79,7 +79,18 @@ const App: React.FC = () => {
       setLoading(false);
     }
   };
-
+  const handleUpload = async (record: Host) => {
+    console.log("handleUpload ", record);
+    message.success("handleUpload ");
+    try {
+      const response = await restful_api.post("/api/hosts/upload", record);
+      console.log("upload success, response: ", response);
+      message.success("主机信息更新成功");
+    } catch (error) {
+      console.error("更新失败:", error);
+      message.error("主机信息更新失败");
+    }
+  };
   const handleDelete = async (id: string) => {
     try {
       await restful_api.delete(`/api/hosts/${id}`);
@@ -140,6 +151,9 @@ const App: React.FC = () => {
             onClick={() => navigate(`/hosts/${record.agent_id}`)}
           >
             查看
+          </Button>
+          <Button type="link" onClick={() => handleUpload(record)}>
+            更新
           </Button>
           {isLoggedIn && (
             <>

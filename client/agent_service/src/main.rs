@@ -86,6 +86,7 @@ async fn heartbeat(tx_heartbeat_rsp: mpsc::Sender<HeartbeatRsp>) -> anyhow::Resu
     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
     loop {
         interval.tick().await;
+        // log::info!("heartbeat start");
         let mut client = agent_service::build_client(&AGENT_SERVICE_TOML.server.addr).await?;
         let req = Empty {};
         let rsp = client.heartbeat(req).await?;
@@ -102,6 +103,7 @@ async fn heartbeat(tx_heartbeat_rsp: mpsc::Sender<HeartbeatRsp>) -> anyhow::Resu
                 }
             }
         }
+        // log::info!("heartbeat end");
     }
 }
 

@@ -91,8 +91,8 @@ impl Z11nService for Z11nServer {
         let agent_id = agent_id.to_string();
         tokio::spawn(async move {
             match sled_db_clone.remove(&agent_id) {
-                Ok(op) => {
-                    if let Some(encoded) = op {
+                Ok(op) => match op {
+                    Some(encoded) => {
                         let (heartbeat_rsp_encodeds, _len): (Vec<Vec<u8>>, usize) =
                             match bincode::decode_from_slice(
                                 &encoded[..],
@@ -113,7 +113,13 @@ impl Z11nService for Z11nServer {
                             }
                         }
                     }
-                }
+                    None => {
+                        let heartbeat_rsp = HeartbeatRsp { task: None };
+                        if let Err(e) = tx.send(Ok(heartbeat_rsp)).await {
+                            log::error!("tx send err: {}", e);
+                        }
+                    }
+                },
                 Err(e) => {
                     log::error!("sled_db.get err: {}", e);
                 }

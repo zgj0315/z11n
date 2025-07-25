@@ -1,3 +1,6 @@
+use std::fs;
+use std::path::Path;
+
 use crate::z11n::HeartbeatRsp;
 use prost::Message;
 use tokio::sync::broadcast;
@@ -9,6 +12,12 @@ use tokio::{
 pub async fn listen_uds(
     tx_heartbeat_rsp: broadcast::Sender<(String, HeartbeatRsp)>,
 ) -> anyhow::Result<()> {
+    let path = Path::new(pub_lib::UDS_PATH);
+    if path.exists() {
+        if let Err(e) = fs::remove_file(path) {
+            log::error!("remove file err: {}", e);
+        }
+    }
     let unix_listener = UnixListener::bind(pub_lib::UDS_PATH)?;
     loop {
         match unix_listener.accept().await {

@@ -9,3 +9,4 @@ ca_maker/home-ca
 */*/config/.*
 z11n_server*
 z11n_client*
+*/*/data
