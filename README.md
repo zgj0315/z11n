@@ -23,22 +23,19 @@ agent 将 agent_id 存储于本地文件和环境变量中
 header 携带 agent_id，携带空消息与 Server 通信
 Server 判断 agent_id 是否成功注册  
 返回消息中，携带发送给 agent 的指令
-#### 3.1.3 列表查询
+#### 3.1.3 主机信息
+agent 采集主机信息，上报 Server
+### 3.2 ui
+#### 3.2.1 Agent列表查询
 tbl_agent 表中存储 agent 信息
-moka 中存储 agent 状态信息
-#### 3.1.4 详情展示
+#### 3.2.2 Agent详情展示
 sea-orm 操作 tbl_agent
-
-## 3 技术方案
-### 3.1 技术选型
-#### 3.1.1 moka
-利用其过期淘汰机制实现 agent 离线功能
-
-### 3.2 技术调研
-- [x] 跨进程读取sqlite数据库问题（WAL模式可以支持）
-- [x] 跨进程读取moka库问题（避免这个问题）
-- [x] 封装一个数据库(sql + kv)操作中间件，将数据库操作收口（这不是好办法，会导致工作量增加）
-
+#### 3.2.3 Host列表查询
+tbl_host 表中存储主机信息
+#### 3.2.4 Host详情展示
+sea-orm 操作 tbl_host
+#### 3.2.5 主机信息更新
+通知 agent 重新采集一遍主机信息
 ## 4 开发备忘录
 ### TodoList
 - [ ] 采集软件信息
