@@ -56,7 +56,11 @@ async fn consume_unix_stream(
             if let Err(e) = unix_stream.write_all(&encoded).await {
                 log::error!("unix_stream.write_all err: {}", e);
             };
+            if let Err(e) = unix_stream.flush().await {
+                log::error!("unix_stream.flush err: {}", e);
+            }
             log::info!("send to client_service: {agent_id} {:?}", heartbeat_rsp);
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         }
     }
 }

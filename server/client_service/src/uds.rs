@@ -11,6 +11,7 @@ pub async fn connect_uds(sled_db: sled::Db) -> anyhow::Result<()> {
                     let mut buf = vec![0; 1024 * 1024];
                     match unix_stream.read(&mut buf).await {
                         Ok(n) => {
+                            log::info!("UnixStream::connect read");
                             let ((agent_id, heartbeat_rsp_encoded), _len): (
                                 (String, Vec<u8>),
                                 usize,
