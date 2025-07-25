@@ -1,13 +1,11 @@
+use crate::z11n::HeartbeatRsp;
+use futures::sink::SinkExt;
+use prost::Message;
 use std::fs;
 use std::path::Path;
-
-use crate::z11n::HeartbeatRsp;
-use prost::Message;
+use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::broadcast;
-use tokio::{
-    io::AsyncWriteExt,
-    net::{UnixListener, UnixStream},
-};
+use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
 
 pub async fn listen_uds(
     tx_heartbeat_rsp: broadcast::Sender<(String, HeartbeatRsp)>,
@@ -38,9 +36,10 @@ pub async fn listen_uds(
 }
 
 async fn consume_unix_stream(
-    mut unix_stream: UnixStream,
+    unix_stream: UnixStream,
     mut rx_heartbeat_rsp: broadcast::Receiver<(String, HeartbeatRsp)>,
 ) -> anyhow::Result<()> {
+    let mut writer = FramedWrite::new(unix_stream, LengthDelimitedCodec::new());
     loop {
         while let Ok((agent_id, heartbeat_rsp)) = rx_heartbeat_rsp.recv().await {
             let encoded: Vec<u8> = match bincode::encode_to_vec(
@@ -53,14 +52,17 @@ async fn consume_unix_stream(
                     continue;
                 }
             };
-            if let Err(e) = unix_stream.write_all(&encoded).await {
-                log::error!("unix_stream.write_all err: {}", e);
-            };
-            if let Err(e) = unix_stream.flush().await {
-                log::error!("unix_stream.flush err: {}", e);
+            if let Err(e) = writer.send(encoded.into()).await {
+                log::error!("FramedWrite send err: {}", e);
             }
+            // if let Err(e) = unix_stream.write_all(&encoded).await {
+            //     log::error!("unix_stream.write_all err: {}", e);
+            // };
+            // if let Err(e) = unix_stream.flush().await {
+            //     log::error!("unix_stream.flush err: {}", e);
+            // }
             log::info!("send to client_service: {agent_id} {:?}", heartbeat_rsp);
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            // tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         }
     }
 }

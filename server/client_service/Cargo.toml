@@ -9,6 +9,7 @@ bincode = "2.0.1"
 chrono = "0.4.41"
 config = "0.15.13"
 entity = {path = "../entity"}
+futures = "0.3.31"
 log = "0.4.27"
 log4rs = "1.3.0"
 migration = {path = "../migration"}
@@ -32,6 +33,7 @@ tokio = {version = "1.46.1", features = [
   "time",
 ]}
 tokio-stream = "0.1.17"
+tokio-util = {version = "0.7.15", features = ["codec"]}
 tonic = {version = "0.13.1", features = ["tls-ring", "gzip"]}
 uuid = {version = "1.17.0", features = ["v4"]}
 
