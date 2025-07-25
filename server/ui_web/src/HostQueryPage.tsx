@@ -83,7 +83,7 @@ const App: React.FC = () => {
     console.log("handleUpload ", record);
     message.success("handleUpload ");
     try {
-      const response = await restful_api.post("/api/hosts/upload", record);
+      const response = await restful_api.post("/api/hosts", record);
       console.log("upload success, response: ", response);
       message.success("主机信息更新成功");
     } catch (error) {

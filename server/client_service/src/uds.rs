@@ -2,7 +2,7 @@ use pub_lib::UDS_PATH;
 use tokio::{io::AsyncReadExt, net::UnixStream};
 
 pub async fn connect_uds(sled_db: sled::Db) -> anyhow::Result<()> {
-    loop {
+    'connect_loop: loop {
         log::info!("UnixStream::connect start");
         match UnixStream::connect(UDS_PATH).await {
             Ok(mut unix_stream) => {
@@ -22,7 +22,7 @@ pub async fn connect_uds(sled_db: sled::Db) -> anyhow::Result<()> {
                                 Err(e) => {
                                     log::error!("bincode::decode_from_slice err: {}", e);
                                     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-                                    continue;
+                                    continue 'connect_loop;
                                 }
                             };
                             match sled_db.remove(&agent_id) {

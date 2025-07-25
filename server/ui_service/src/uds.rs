@@ -5,20 +5,23 @@ use crate::z11n::HeartbeatRsp;
 use prost::Message;
 use tokio::sync::broadcast;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncWriteExt,
     net::{UnixListener, UnixStream},
 };
 
 pub async fn listen_uds(
     tx_heartbeat_rsp: broadcast::Sender<(String, HeartbeatRsp)>,
 ) -> anyhow::Result<()> {
+    log::info!("listen_uds start");
     let path = Path::new(pub_lib::UDS_PATH);
     if path.exists() {
         if let Err(e) = fs::remove_file(path) {
             log::error!("remove file err: {}", e);
         }
     }
+    log::info!("listen_uds remove uds path");
     let unix_listener = UnixListener::bind(pub_lib::UDS_PATH)?;
+    log::info!("UnixListener::bind success");
     loop {
         match unix_listener.accept().await {
             Ok((unix_stream, socket_addr)) => {
@@ -39,18 +42,6 @@ async fn consume_unix_stream(
     mut rx_heartbeat_rsp: broadcast::Receiver<(String, HeartbeatRsp)>,
 ) -> anyhow::Result<()> {
     loop {
-        let mut buf = vec![0; 1024];
-        match unix_stream.read(&mut buf).await {
-            Ok(n) => {
-                log::info!(
-                    "receive from client_service: {}",
-                    String::from_utf8_lossy(&buf[..n])
-                );
-            }
-            Err(e) => {
-                log::error!("unix_stream.read err: {}", e);
-            }
-        }
         while let Ok((agent_id, heartbeat_rsp)) = rx_heartbeat_rsp.recv().await {
             let encoded: Vec<u8> = match bincode::encode_to_vec(
                 &(agent_id, heartbeat_rsp.encode_to_vec()),
