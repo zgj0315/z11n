@@ -55,9 +55,13 @@ pub async fn connect_uds(sled_db: sled::Db) -> anyhow::Result<()> {
                                                 continue;
                                             }
                                         };
-                                        if let Err(e) = sled_db.insert(agent_id, encoded) {
+                                        if let Err(e) = sled_db.insert(agent_id.clone(), encoded) {
                                             log::error!("sled_db.insert err: {}", e);
                                         }
+                                        log::info!(
+                                            "receive from ui_service: {agent_id}, cmd size: {}",
+                                            heartbeat_rsp_encodeds.len()
+                                        );
                                     }
                                     None => {
                                         let heartbeat_rsp_encodeds = vec![heartbeat_rsp_encoded];
@@ -71,9 +75,13 @@ pub async fn connect_uds(sled_db: sled::Db) -> anyhow::Result<()> {
                                                 continue;
                                             }
                                         };
-                                        if let Err(e) = sled_db.insert(agent_id, encoded) {
+                                        if let Err(e) = sled_db.insert(agent_id.clone(), encoded) {
                                             log::error!("sled_db.insert err: {}", e);
                                         }
+                                        log::info!(
+                                            "receive from ui_service: {agent_id}, cmd size: {}",
+                                            heartbeat_rsp_encodeds.len()
+                                        );
                                     }
                                 },
                                 Err(_) => todo!(),

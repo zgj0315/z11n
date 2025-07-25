@@ -44,7 +44,7 @@ async fn consume_unix_stream(
     loop {
         while let Ok((agent_id, heartbeat_rsp)) = rx_heartbeat_rsp.recv().await {
             let encoded: Vec<u8> = match bincode::encode_to_vec(
-                &(agent_id, heartbeat_rsp.encode_to_vec()),
+                &(agent_id.clone(), heartbeat_rsp.encode_to_vec()),
                 bincode::config::standard(),
             ) {
                 Ok(v) => v,
@@ -56,7 +56,7 @@ async fn consume_unix_stream(
             if let Err(e) = unix_stream.write_all(&encoded).await {
                 log::error!("unix_stream.write_all err: {}", e);
             };
-            log::info!("send to client_service: {:?}", heartbeat_rsp);
+            log::info!("send to client_service: {agent_id} {:?}", heartbeat_rsp);
         }
     }
 }
