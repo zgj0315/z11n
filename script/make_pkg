@@ -17,10 +17,12 @@ mkdir -p z11n_server/db
 mkdir -p z11n_server/client_service/bin
 mkdir -p z11n_server/client_service/config
 mkdir -p z11n_server/client_service/log
+mkdir -p z11n_server/client_service/data
 
 mkdir -p z11n_server/ui_service/bin
 mkdir -p z11n_server/ui_service/config
 mkdir -p z11n_server/ui_service/log
+mkdir -p z11n_server/ui_service/data
 mkdir -p z11n_server/ui_service/html
 
 mkdir -p z11n_client/agent_service/bin
