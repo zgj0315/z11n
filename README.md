@@ -45,13 +45,14 @@ sea-orm 操作 tbl_agent
 - [ ] 调研如何将 Server 端发出的扫描数据包传递到 Agent 上
 - [ ] 前端国际化方案调研
 - [ ] 调研 handlebars 实现kv内容的显示
-- [ ] 更新主机信息
 - [ ] 系统升级（升级包制作，上传升级包+升级动作）
+### 20250725
+- [x] ui_service 与 client_service 通信
+- [x] 更新主机信息
 ### 20250724
 - [x] 系统安装包制作脚本
 - [x] 支持上传多种主机信息
 - [x] disk and network
-- [ ] ui_service 与 client_service 通信
 ### 20250723
 - [x] agent register
 - [x] migration and entity init

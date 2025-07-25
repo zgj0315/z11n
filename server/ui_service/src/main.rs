@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
 
     let db_path = Path::new(pub_lib::DB_PATH);
     if !db_path.exists() {
-        File::create(&db_path)?;
+        File::create(db_path)?;
         log::info!("create file: {}", db_path.to_string_lossy());
     }
 
