@@ -135,7 +135,7 @@ fn consume_heartbeat_rsp(
                         let system = host::system()?;
                         if let Some(lock) = HOST_INFO.get() {
                             let mut write = lock.write();
-                            write.system = Some(system.clone()).into();
+                            write.system = Some(system.clone());
                         }
                         if let Some(lock) = HOST_INFO.get() {
                             let read = lock.read();
@@ -154,7 +154,7 @@ fn consume_heartbeat_rsp(
                         let disks = host::disk()?;
                         if let Some(lock) = HOST_INFO.get() {
                             let mut write = lock.write();
-                            write.disks = disks.into();
+                            write.disks = disks;
                         }
                         if let Some(lock) = HOST_INFO.get() {
                             let read = lock.read();
@@ -173,7 +173,7 @@ fn consume_heartbeat_rsp(
                         let networks = host::network()?;
                         if let Some(lock) = HOST_INFO.get() {
                             let mut write = lock.write();
-                            write.networks = networks.into();
+                            write.networks = networks;
                         }
                         if let Some(lock) = HOST_INFO.get() {
                             let read = lock.read();
