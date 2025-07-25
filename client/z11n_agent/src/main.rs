@@ -15,7 +15,8 @@ use z11n_agent::{
     config::Z11N_AGENT_TOML,
     host,
     proto::{
-        Empty, HeartbeatRsp, HostReq, RegisterReq, heartbeat_rsp::Task, upload_host::InfoType,
+        Empty, HeartbeatRsp, HostReq, RegisterReq, UploadHost, heartbeat_rsp::Task,
+        upload_host::InfoType,
     },
 };
 static HOST_INFO: OnceCell<RwLock<HostReq>> = OnceCell::new();
@@ -73,6 +74,27 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
+    tx_heartbeat_rsp
+        .send(HeartbeatRsp {
+            task: Some(Task::UploadHost(UploadHost {
+                info_type: InfoType::System.into(),
+            })),
+        })
+        .await?;
+    tx_heartbeat_rsp
+        .send(HeartbeatRsp {
+            task: Some(Task::UploadHost(UploadHost {
+                info_type: InfoType::Disk.into(),
+            })),
+        })
+        .await?;
+    tx_heartbeat_rsp
+        .send(HeartbeatRsp {
+            task: Some(Task::UploadHost(UploadHost {
+                info_type: InfoType::Network.into(),
+            })),
+        })
+        .await?;
     if let Err(e) = heartbeat(tx_heartbeat_rsp.clone()).await {
         log::error!("heartbeat api err: {}", e);
     }
