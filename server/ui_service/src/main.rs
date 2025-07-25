@@ -55,7 +55,13 @@ async fn main() -> anyhow::Result<()> {
             log::error!("listen uds err: {}", e);
         }
     });
-    let sled_db = sled::open("../db/sled_db")?;
+    let sled_dir = Path::new("./data");
+    if !sled_dir.exists() {
+        fs::create_dir_all(sled_dir)?;
+        log::info!("create dir: {}", sled_dir.to_string_lossy());
+    }
+    let sled_path = sled_dir.join("sled_db");
+    let sled_db = sled::open(sled_path)?;
     auth::token_expired_task(sled_db.clone()).await?;
     let app_state = AppState {
         db_conn,
