@@ -152,9 +152,16 @@ const App: React.FC = () => {
           >
             查看
           </Button>
-          <Button type="link" onClick={() => handleUpload(record)}>
-            更新
-          </Button>
+          <Popconfirm
+            title="确定要更新这条记录吗？"
+            onConfirm={() => handleUpload(record)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button danger type="link">
+              更新
+            </Button>
+          </Popconfirm>
           {isLoggedIn && (
             <>
               <Popconfirm
