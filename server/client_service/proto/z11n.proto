@@ -2,9 +2,50 @@ syntax = "proto3";
 package z11n;
 
 service Z11nService {
-    rpc Heartbeat(Empty) returns (stream HeartbeatRsp) {}
+    // Agent 注册，返回 Token
     rpc Register(RegisterReq) returns (RegisterRsp) {}
+    // Agent 心跳，返回任务
+    rpc Heartbeat(Empty) returns (stream HeartbeatRsp) {}
+    // Host 信息上报
     rpc Host(HostReq) returns (Empty) {}
+    // LLM 提交任务问题
+    rpc PushLlmTaskQuestion(LlmTaskQuestionReq) returns (LlmTaskId) {}
+    // LLM 获取任务问题
+    rpc PullLlmTaskQuestion(Empty) returns (LlmTaskQuestionRsp) {}
+    // LLM 提交任务答案
+    rpc PushLlmTaskAnswer(LlmTaskAnswerReq) returns (Empty) {}
+    // LLM 获取任务答案
+    rpc PullLlmTaskAnswer(LlmTaskId) returns (LlmTaskAnswer) {}
+}
+
+message LlmTaskAnswerReq {
+    string id = 1;
+    string content = 2;
+}
+
+message LlmTaskAnswer {
+    string content = 1;
+}
+
+message LlmTaskId {
+    string id = 1;
+}
+
+message LlmTaskQuestionReq {
+    string model = 1;
+    string prompt = 2;
+    string content = 3;
+}
+
+message LlmTaskQuestionRsp {
+    LlmTaskQuestion llm_task_question = 1;
+}
+
+message LlmTaskQuestion {
+    string id = 1;
+    string model = 2;
+    string prompt = 3;
+    string content = 4;
 }
 
 message Empty {}
