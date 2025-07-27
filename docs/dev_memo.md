@@ -5,8 +5,11 @@
 - [ ] 前端国际化方案调研
 - [ ] 调研 handlebars 实现kv内容的显示
 - [ ] 系统升级（升级包制作，上传升级包+升级动作）
+- [ ] llm task broker agent
+- [ ] llm task broker ui
 ### 20250727
-- [ ] llm task broker design
+- [x] llm task broker design
+- [x] llm task broker gRPC api
 ### 20250725
 - [x] ui_service 与 client_service 通信
 - [x] 更新主机信息
