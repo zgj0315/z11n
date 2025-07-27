@@ -5,3 +5,4 @@ pub mod prelude;
 pub mod tbl_agent;
 pub mod tbl_auth_user;
 pub mod tbl_host;
+pub mod tbl_llm_task;

@@ -1,12 +1,15 @@
 use crate::proto::{
-    Empty, HeartbeatRsp, HostReq, RegisterReq, RegisterRsp, z11n_service_server::Z11nService,
+    Empty, HeartbeatRsp, HostReq, LlmTaskAnswer, LlmTaskAnswerReq, LlmTaskId, LlmTaskQuestion,
+    LlmTaskQuestionReq, LlmTaskQuestionRsp, RegisterReq, RegisterRsp,
+    z11n_service_server::Z11nService,
 };
-use entity::{tbl_agent, tbl_host};
+use entity::{tbl_agent, tbl_host, tbl_llm_task};
 use moka::sync::Cache;
 use prost::Message;
 use pub_lib::AgentState;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, DatabaseConnection, EntityTrait, IntoActiveModel,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
+    IntoActiveModel, QueryFilter,
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -284,5 +287,158 @@ impl Z11nService for Z11nServer {
         }
         log::info!("save host success");
         Ok(Response::new(Empty {}))
+    }
+
+    async fn push_llm_task_question(
+        &self,
+        req: Request<LlmTaskQuestionReq>,
+    ) -> Result<Response<LlmTaskId>, Status> {
+        let llm_task_question = req.get_ref();
+        let id = uuid::Uuid::new_v4().to_string();
+        let tbl_llm_task_am = tbl_llm_task::ActiveModel {
+            id: Set(id),
+            model: Set(llm_task_question.model.clone()),
+            prompt: Set(llm_task_question.prompt.clone()),
+            req_content: Set(llm_task_question.content.clone()),
+            ..Default::default()
+        };
+        match tbl_llm_task::Entity::insert(tbl_llm_task_am)
+            .exec(&self.db_conn)
+            .await
+        {
+            Ok(insert_result) => {
+                let id = insert_result.last_insert_id;
+                return Ok(Response::new(LlmTaskId { id }));
+            }
+            Err(e) => {
+                log::error!("tbl_llm_task insert err: {}", e);
+                return Err(tonic::Status::new(
+                    tonic::Code::Internal,
+                    "tbl_llm_task insert err".to_string(),
+                ));
+            }
+        }
+    }
+
+    async fn pull_llm_task_question(
+        &self,
+        _req: Request<Empty>,
+    ) -> Result<Response<LlmTaskQuestionRsp>, Status> {
+        match tbl_llm_task::Entity::find()
+            .filter(tbl_llm_task::Column::ReqPullAt.is_null())
+            .one(&self.db_conn)
+            .await
+        {
+            Ok(op) => match op {
+                Some(tbl_llm_task) => {
+                    let llm_task_question = LlmTaskQuestion {
+                        id: tbl_llm_task.id,
+                        model: tbl_llm_task.model,
+                        prompt: tbl_llm_task.prompt,
+                        content: tbl_llm_task.req_content,
+                    };
+                    let r = LlmTaskQuestionRsp {
+                        llm_task_question: Some(llm_task_question),
+                    };
+                    return Ok(Response::new(r));
+                }
+                None => {
+                    let r = LlmTaskQuestionRsp {
+                        llm_task_question: None,
+                    };
+                    return Ok(Response::new(r));
+                }
+            },
+            Err(e) => {
+                log::error!("tbl_llm_task find err: {}", e);
+                return Err(tonic::Status::new(
+                    tonic::Code::Internal,
+                    "tbl_llm_task find err".to_string(),
+                ));
+            }
+        }
+    }
+
+    async fn push_llm_task_answer(
+        &self,
+        req: Request<LlmTaskAnswerReq>,
+    ) -> Result<Response<Empty>, Status> {
+        let llm_task_answer = req.get_ref();
+        match tbl_llm_task::Entity::find_by_id(&llm_task_answer.id)
+            .one(&self.db_conn)
+            .await
+        {
+            Ok(op) => match op {
+                Some(tbl_llm_task) => {
+                    let mut tbl_llm_task_am = tbl_llm_task.into_active_model();
+                    tbl_llm_task_am.rsp_content = Set(Some(llm_task_answer.content.clone()));
+                    if let Err(e) = tbl_llm_task_am.save(&self.db_conn).await {
+                        log::error!("tbl_llm_task_am.save err: {}", e);
+                        return Err(tonic::Status::new(
+                            tonic::Code::Internal,
+                            "tbl_llm_task_am.save".to_string(),
+                        ));
+                    }
+                }
+                None => {
+                    log::warn!("tbl_llm_task not exist");
+                    return Err(tonic::Status::new(
+                        tonic::Code::DataLoss,
+                        "tbl_llm_task not exist".to_string(),
+                    ));
+                }
+            },
+            Err(e) => {
+                log::error!("tbl_llm_task find err: {}", e);
+                return Err(tonic::Status::new(
+                    tonic::Code::Internal,
+                    "tbl_llm_task find err".to_string(),
+                ));
+            }
+        }
+        Ok(Response::new(Empty {}))
+    }
+
+    async fn pull_llm_task_answer(
+        &self,
+        req: Request<LlmTaskId>,
+    ) -> Result<Response<LlmTaskAnswer>, Status> {
+        let llm_task_answer = req.get_ref();
+        match tbl_llm_task::Entity::find_by_id(&llm_task_answer.id)
+            .one(&self.db_conn)
+            .await
+        {
+            Ok(op) => match op {
+                Some(tbl_llm_task) => match tbl_llm_task.rsp_content {
+                    Some(rsp_content) => {
+                        let r = LlmTaskAnswer {
+                            content: rsp_content,
+                        };
+                        return Ok(Response::new(r));
+                    }
+                    None => {
+                        log::info!("content not ready");
+                        return Err(tonic::Status::new(
+                            tonic::Code::FailedPrecondition,
+                            "content not ready".to_string(),
+                        ));
+                    }
+                },
+                None => {
+                    log::warn!("tbl_llm_task not exist");
+                    return Err(tonic::Status::new(
+                        tonic::Code::DataLoss,
+                        "tbl_llm_task not exist".to_string(),
+                    ));
+                }
+            },
+            Err(e) => {
+                log::error!("tbl_llm_task find err: {}", e);
+                return Err(tonic::Status::new(
+                    tonic::Code::Internal,
+                    "tbl_llm_task find err".to_string(),
+                ));
+            }
+        }
     }
 }

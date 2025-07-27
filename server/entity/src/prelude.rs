@@ -3,3 +3,4 @@
 pub use super::tbl_agent::Entity as TblAgent;
 pub use super::tbl_auth_user::Entity as TblAuthUser;
 pub use super::tbl_host::Entity as TblHost;
+pub use super::tbl_llm_task::Entity as TblLlmTask;
