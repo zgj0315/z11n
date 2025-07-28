@@ -1,7 +1,15 @@
-use crate::proto::z11n_service_client::Z11nServiceClient;
+use crate::{
+    config::Z11N_AGENT_TOML,
+    proto::{Empty, RegisterReq, z11n_service_client::Z11nServiceClient},
+};
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
-use std::fs;
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::Path,
+};
+use tokio_stream::StreamExt;
 use tonic::{
     Request, Status,
     service::{Interceptor, interceptor::InterceptedService},
@@ -45,5 +53,59 @@ fn intercept(mut req: Request<()>) -> Result<Request<()>, Status> {
         Ok(req)
     } else {
         Err(Status::unauthenticated("agent_id_token not initialized"))
+    }
+}
+
+pub async fn agent_register() -> anyhow::Result<()> {
+    let agent_id_config = Path::new("./config/.agent_id");
+    let agent_id = if agent_id_config.exists() {
+        fs::read_to_string(agent_id_config)?
+    } else {
+        let agent_id = uuid::Uuid::new_v4().to_string();
+        let mut file = File::create(agent_id_config)?;
+        file.write_all(agent_id.as_bytes())?;
+        agent_id
+    };
+    let version = env!("CARGO_PKG_VERSION");
+    log::info!("agent_id: {agent_id}, version: {version}");
+    let register_req = RegisterReq {
+        agent_id: agent_id.clone(),
+        agent_version: version.to_string(),
+    };
+    if AGENT_ID_TOKEN.get().is_none() {
+        if let Err(e) = AGENT_ID_TOKEN.set(RwLock::new((agent_id.clone(), "".to_string()))) {
+            log::error!("AGENT_ID_TOKEN set err: {:?}", e);
+        }
+    }
+    let mut client = build_client(&Z11N_AGENT_TOML.server.addr).await?;
+    let register_rsp = client.register(register_req).await?;
+    let token = register_rsp.get_ref().token.clone();
+
+    if let Some(lock) = AGENT_ID_TOKEN.get() {
+        let mut write = lock.write();
+        *write = (agent_id, token);
+    }
+    Ok(())
+}
+
+pub async fn heartbeat() -> anyhow::Result<()> {
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+    loop {
+        interval.tick().await;
+        let mut client = build_client(&Z11N_AGENT_TOML.server.addr).await?;
+        let req = Empty {};
+        let rsp = client.heartbeat(req).await?;
+        let mut stream = rsp.into_inner();
+        while let Some(v) = stream.next().await {
+            match v {
+                Ok(heartbeat_rsp) => {
+                    log::info!("heartbeat_rsp: {heartbeat_rsp:?}");
+                }
+                Err(e) => {
+                    log::error!("stream {}", e);
+                    break;
+                }
+            }
+        }
     }
 }
