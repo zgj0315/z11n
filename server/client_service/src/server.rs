@@ -332,14 +332,23 @@ impl Z11nService for Z11nServer {
             Ok(op) => match op {
                 Some(tbl_llm_task) => {
                     let llm_task_question = LlmTaskQuestion {
-                        id: tbl_llm_task.id,
-                        model: tbl_llm_task.model,
-                        prompt: tbl_llm_task.prompt,
-                        content: tbl_llm_task.req_content,
+                        id: tbl_llm_task.id.clone(),
+                        model: tbl_llm_task.model.clone(),
+                        prompt: tbl_llm_task.prompt.clone(),
+                        content: tbl_llm_task.req_content.clone(),
                     };
                     let r = LlmTaskQuestionRsp {
                         llm_task_question: Some(llm_task_question),
                     };
+                    let mut tbl_llm_task_am = tbl_llm_task.into_active_model();
+                    tbl_llm_task_am.req_pull_at = Set(Some(chrono::Utc::now().naive_utc()));
+                    if let Err(e) = tbl_llm_task_am.save(&self.db_conn).await {
+                        log::error!("tbl_llm_task_am.save err: {}", e);
+                        return Err(tonic::Status::new(
+                            tonic::Code::Internal,
+                            "tbl_llm_task find err".to_string(),
+                        ));
+                    }
                     return Ok(Response::new(r));
                 }
                 None => {
@@ -372,6 +381,7 @@ impl Z11nService for Z11nServer {
                 Some(tbl_llm_task) => {
                     let mut tbl_llm_task_am = tbl_llm_task.into_active_model();
                     tbl_llm_task_am.rsp_content = Set(Some(llm_task_answer.content.clone()));
+                    tbl_llm_task_am.rsp_push_at = Set(Some(chrono::Utc::now().naive_utc()));
                     if let Err(e) = tbl_llm_task_am.save(&self.db_conn).await {
                         log::error!("tbl_llm_task_am.save err: {}", e);
                         return Err(tonic::Status::new(
@@ -409,11 +419,20 @@ impl Z11nService for Z11nServer {
             .await
         {
             Ok(op) => match op {
-                Some(tbl_llm_task) => match tbl_llm_task.rsp_content {
+                Some(tbl_llm_task) => match tbl_llm_task.rsp_content.clone() {
                     Some(rsp_content) => {
                         let r = LlmTaskAnswer {
                             content: rsp_content,
                         };
+                        let mut tbl_llm_task_am = tbl_llm_task.into_active_model();
+                        tbl_llm_task_am.rsp_pull_at = Set(Some(chrono::Utc::now().naive_utc()));
+                        if let Err(e) = tbl_llm_task_am.save(&self.db_conn).await {
+                            log::error!("tbl_llm_task_am.save err: {}", e);
+                            return Err(tonic::Status::new(
+                                tonic::Code::Internal,
+                                "tbl_llm_task_am.save".to_string(),
+                            ));
+                        }
                         return Ok(Response::new(r));
                     }
                     None => {
