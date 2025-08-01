@@ -8,11 +8,13 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: String,
+    pub req_agent_id: String,
     pub model: String,
     pub prompt: String,
     pub req_content: String,
     pub req_push_at: DateTime,
     pub req_pull_at: Option<DateTime>,
+    pub rsp_agent_id: Option<String>,
     pub rsp_content: Option<String>,
     pub rsp_push_at: Option<DateTime>,
     pub rsp_pull_at: Option<DateTime>,

@@ -13,18 +13,18 @@ service Z11nService {
     // LLM 获取任务问题
     rpc PullLlmTaskQuestion(Empty) returns (LlmTaskQuestionRsp) {}
     // LLM 提交任务答案
-    rpc PushLlmTaskAnswer(LlmTaskAnswerReq) returns (Empty) {}
+    rpc PushLlmTaskAnswer(LlmTaskAnswer) returns (Empty) {}
     // LLM 获取任务答案
-    rpc PullLlmTaskAnswer(LlmTaskId) returns (LlmTaskAnswer) {}
+    rpc PullLlmTaskAnswer(Empty) returns (LlmTaskAnswers) {}
 }
 
-message LlmTaskAnswerReq {
-    string id = 1;
-    string content = 2;
+message LlmTaskAnswers {
+    repeated LlmTaskAnswer items = 1;
 }
 
 message LlmTaskAnswer {
-    string content = 1;
+    string id = 1;
+    string content = 2;
 }
 
 message LlmTaskId {

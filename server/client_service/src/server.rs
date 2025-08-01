@@ -1,5 +1,5 @@
 use crate::proto::{
-    Empty, HeartbeatRsp, HostReq, LlmTaskAnswer, LlmTaskAnswerReq, LlmTaskId, LlmTaskQuestion,
+    Empty, HeartbeatRsp, HostReq, LlmTaskAnswer, LlmTaskAnswers, LlmTaskId, LlmTaskQuestion,
     LlmTaskQuestionReq, LlmTaskQuestionRsp, RegisterReq, RegisterRsp,
     z11n_service_server::Z11nService,
 };
@@ -293,10 +293,12 @@ impl Z11nService for Z11nServer {
         &self,
         req: Request<LlmTaskQuestionReq>,
     ) -> Result<Response<LlmTaskId>, Status> {
+        let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
         let llm_task_question = req.get_ref();
         let id = uuid::Uuid::new_v4().to_string();
         let tbl_llm_task_am = tbl_llm_task::ActiveModel {
             id: Set(id),
+            req_agent_id: Set(agent_id.to_string()),
             model: Set(llm_task_question.model.clone()),
             prompt: Set(llm_task_question.prompt.clone()),
             req_content: Set(llm_task_question.content.clone()),
@@ -370,8 +372,9 @@ impl Z11nService for Z11nServer {
 
     async fn push_llm_task_answer(
         &self,
-        req: Request<LlmTaskAnswerReq>,
+        req: Request<LlmTaskAnswer>,
     ) -> Result<Response<Empty>, Status> {
+        let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
         let llm_task_answer = req.get_ref();
         match tbl_llm_task::Entity::find_by_id(&llm_task_answer.id)
             .one(&self.db_conn)
@@ -380,6 +383,7 @@ impl Z11nService for Z11nServer {
             Ok(op) => match op {
                 Some(tbl_llm_task) => {
                     let mut tbl_llm_task_am = tbl_llm_task.into_active_model();
+                    tbl_llm_task_am.rsp_agent_id = Set(Some(agent_id.to_string()));
                     tbl_llm_task_am.rsp_content = Set(Some(llm_task_answer.content.clone()));
                     tbl_llm_task_am.rsp_push_at = Set(Some(chrono::Utc::now().naive_utc()));
                     if let Err(e) = tbl_llm_task_am.save(&self.db_conn).await {
@@ -411,46 +415,44 @@ impl Z11nService for Z11nServer {
 
     async fn pull_llm_task_answer(
         &self,
-        req: Request<LlmTaskId>,
-    ) -> Result<Response<LlmTaskAnswer>, Status> {
-        let llm_task_answer = req.get_ref();
-        match tbl_llm_task::Entity::find_by_id(&llm_task_answer.id)
-            .one(&self.db_conn)
+        req: Request<Empty>,
+    ) -> Result<Response<LlmTaskAnswers>, Status> {
+        let agent_id = extract_metadata_value(req.metadata(), "agent_id")?;
+        let mut results = Vec::new();
+        match tbl_llm_task::Entity::find()
+            .filter(tbl_llm_task::Column::ReqAgentId.eq(agent_id))
+            .all(&self.db_conn)
             .await
         {
-            Ok(op) => match op {
-                Some(tbl_llm_task) => match tbl_llm_task.rsp_content.clone() {
-                    Some(rsp_content) => {
-                        let r = LlmTaskAnswer {
-                            content: rsp_content,
-                        };
-                        let mut tbl_llm_task_am = tbl_llm_task.into_active_model();
-                        tbl_llm_task_am.rsp_pull_at = Set(Some(chrono::Utc::now().naive_utc()));
-                        if let Err(e) = tbl_llm_task_am.save(&self.db_conn).await {
-                            log::error!("tbl_llm_task_am.save err: {}", e);
+            Ok(vec) => {
+                for tbl_llm_task in vec {
+                    match tbl_llm_task.rsp_content.clone() {
+                        Some(rsp_content) => {
+                            let r = LlmTaskAnswer {
+                                id: tbl_llm_task.id.clone(),
+                                content: rsp_content,
+                            };
+                            let mut tbl_llm_task_am = tbl_llm_task.into_active_model();
+                            tbl_llm_task_am.rsp_pull_at = Set(Some(chrono::Utc::now().naive_utc()));
+                            if let Err(e) = tbl_llm_task_am.save(&self.db_conn).await {
+                                log::error!("tbl_llm_task_am.save err: {}", e);
+                                return Err(tonic::Status::new(
+                                    tonic::Code::Internal,
+                                    "tbl_llm_task_am.save".to_string(),
+                                ));
+                            }
+                            results.push(r);
+                        }
+                        None => {
+                            log::info!("content not ready");
                             return Err(tonic::Status::new(
-                                tonic::Code::Internal,
-                                "tbl_llm_task_am.save".to_string(),
+                                tonic::Code::FailedPrecondition,
+                                "content not ready".to_string(),
                             ));
                         }
-                        return Ok(Response::new(r));
                     }
-                    None => {
-                        log::info!("content not ready");
-                        return Err(tonic::Status::new(
-                            tonic::Code::FailedPrecondition,
-                            "content not ready".to_string(),
-                        ));
-                    }
-                },
-                None => {
-                    log::warn!("tbl_llm_task not exist");
-                    return Err(tonic::Status::new(
-                        tonic::Code::DataLoss,
-                        "tbl_llm_task not exist".to_string(),
-                    ));
                 }
-            },
+            }
             Err(e) => {
                 log::error!("tbl_llm_task find err: {}", e);
                 return Err(tonic::Status::new(
@@ -459,5 +461,6 @@ impl Z11nService for Z11nServer {
                 ));
             }
         }
+        return Ok(Response::new(LlmTaskAnswers { items: results }));
     }
 }
