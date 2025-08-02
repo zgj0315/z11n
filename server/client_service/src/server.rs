@@ -342,6 +342,7 @@ impl Z11nService for Z11nServer {
                     let r = LlmTaskQuestionRsp {
                         llm_task_question: Some(llm_task_question),
                     };
+                    let id = tbl_llm_task.id.clone();
                     let mut tbl_llm_task_am = tbl_llm_task.into_active_model();
                     tbl_llm_task_am.req_pull_at = Set(Some(chrono::Utc::now().naive_utc()));
                     if let Err(e) = tbl_llm_task_am.save(&self.db_conn).await {
@@ -351,6 +352,7 @@ impl Z11nService for Z11nServer {
                             "tbl_llm_task find err".to_string(),
                         ));
                     }
+                    log::info!("pull_llm_task_question task {id}");
                     return Ok(Response::new(r));
                 }
                 None => {
@@ -421,6 +423,7 @@ impl Z11nService for Z11nServer {
         let mut results = Vec::new();
         match tbl_llm_task::Entity::find()
             .filter(tbl_llm_task::Column::ReqAgentId.eq(agent_id))
+            .filter(tbl_llm_task::Column::RspPullAt.is_null())
             .all(&self.db_conn)
             .await
         {
@@ -444,11 +447,7 @@ impl Z11nService for Z11nServer {
                             results.push(r);
                         }
                         None => {
-                            log::info!("content not ready");
-                            return Err(tonic::Status::new(
-                                tonic::Code::FailedPrecondition,
-                                "content not ready".to_string(),
-                            ));
+                            log::info!("task {} content not ready", tbl_llm_task.id);
                         }
                     }
                 }

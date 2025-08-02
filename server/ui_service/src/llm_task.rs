@@ -38,7 +38,7 @@ struct QueryOutputDto {
     req_content: String,
     req_push_at: i64,
     req_pull_at: Option<i64>,
-    rsp_content: String,
+    rsp_content: Option<String>,
     rsp_push_at: Option<i64>,
     rsp_pull_at: Option<i64>,
 }
@@ -109,6 +109,10 @@ async fn query(
             Some(v) => Some(v.and_utc().timestamp_millis()),
             None => None,
         };
+        let rsp_content = match tbl_llm_task.rsp_content {
+            Some(v) => Some(v),
+            None => None,
+        };
         llm_tasks.push(QueryOutputDto {
             id: tbl_llm_task.id,
             model: tbl_llm_task.model,
@@ -116,7 +120,7 @@ async fn query(
             req_content: tbl_llm_task.req_content,
             req_push_at: tbl_llm_task.req_push_at.and_utc().timestamp_millis(),
             req_pull_at,
-            rsp_content: tbl_llm_task.rsp_content.unwrap(),
+            rsp_content,
             rsp_push_at,
             rsp_pull_at,
         });
