@@ -17,7 +17,7 @@ use ui_service::{
     AppState, agent,
     auth::{self, RequireAuth},
     config::UI_SERVICE_TOML,
-    host,
+    host, llm_task,
     uds::listen_uds,
 };
 
@@ -82,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api", agent::routers(app_state.clone()))
         .nest("/api", auth::routers(app_state.clone()))
         .nest("/api", host::routers(app_state.clone()))
+        .nest("/api", llm_task::routers(app_state.clone()))
         .layer(from_extractor_with_state::<RequireAuth, _>(Arc::new(
             app_state,
         )));
