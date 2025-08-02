@@ -5,9 +5,9 @@
 - [ ] 前端国际化方案调研
 - [ ] 调研 handlebars 实现kv内容的显示
 - [ ] 系统升级（升级包制作，上传升级包+升级动作）
-- [ ] llm task broker agent debug
 ### 20250802
-- [ ] llm task broker ui
+- [x] llm task broker ui
+- [ ] llm task broker agent debug
 ### 20250801
 - [x] llm task broker agent
 ### 20250728
