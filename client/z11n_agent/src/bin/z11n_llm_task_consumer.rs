@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use z11n_agent::{
     agent_register, build_client,
     config::Z11N_AGENT_TOML,
@@ -29,18 +30,57 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Message {
+    role: String,
+    content: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ReqBody {
+    model: String,
+    messages: Vec<Message>,
+    stream: bool,
+}
+
 async fn push_llm_task_answer(
     mut rx: tokio::sync::mpsc::Receiver<LlmTaskQuestion>,
 ) -> anyhow::Result<()> {
     while let Some(llm_task_question) = rx.recv().await {
-        let mut client = build_client(&Z11N_AGENT_TOML.server.addr).await?;
-        let llm_task_answer = LlmTaskAnswer {
-            id: llm_task_question.id.clone(),
-            content: "this is answer".to_string(),
+        let ollama_url = "http://127.0.0.1:11434/api/chat";
+        let client = reqwest::ClientBuilder::new().build()?;
+        let system_msg = Message {
+            role: "system".to_string(),
+            content: llm_task_question.prompt,
         };
-        log::info!("push_llm_task_answer task: {}", llm_task_question.id);
-        let rsp = client.push_llm_task_answer(llm_task_answer).await?;
-        log::info!("rsp: {rsp:?}");
+
+        let user_msg = Message {
+            role: "user".to_string(),
+            content: llm_task_question.content,
+        };
+        let req_body = ReqBody {
+            model: llm_task_question.model,
+            messages: [system_msg.clone(), user_msg].to_vec(),
+            stream: false,
+        };
+        let req_body = serde_json::to_value(req_body)?;
+
+        let rsp = client
+            .post(ollama_url)
+            .body(req_body.to_string())
+            .send()
+            .await?;
+        let text = rsp.text().await?;
+        let json: serde_json::Value = serde_json::from_str(&text)?;
+        if let Some(content) = json["message"]["content"].as_str() {
+            let mut client = build_client(&Z11N_AGENT_TOML.server.addr).await?;
+            let llm_task_answer = LlmTaskAnswer {
+                id: llm_task_question.id.clone(),
+                content: content.to_string(),
+            };
+            log::info!("push_llm_task_answer task: {}", llm_task_question.id);
+            let rsp = client.push_llm_task_answer(llm_task_answer).await?;
+            log::info!("rsp: {rsp:?}");
+        }
     }
     Ok(())
 }

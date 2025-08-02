@@ -51,9 +51,9 @@ async fn pull_llm_task_answer() -> anyhow::Result<()> {
 }
 async fn push_llm_task_question() -> anyhow::Result<()> {
     let llm_task_question_req = LlmTaskQuestionReq {
-        model: "this is model".to_string(),
-        prompt: "this is prompt".to_string(),
-        content: "this is content".to_string(),
+        model: "gemma3".to_string(),
+        prompt: "你是一个资深的Rust程序员专家".to_string(),
+        content: "如何遍历一个enum".to_string(),
     };
     let mut client = build_client(&Z11N_AGENT_TOML.server.addr).await?;
     let rsp = client.push_llm_task_question(llm_task_question_req).await?;
