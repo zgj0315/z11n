@@ -25,6 +25,11 @@ const App: React.FC = () => {
       icon: <UserOutlined />,
       label: "主机管理",
     },
+    {
+      key: "/llm_tasks",
+      icon: <UserOutlined />,
+      label: "任务管理",
+    },
   ];
   const isLoggedIn = !!localStorage.getItem("token");
   if (isLoggedIn) {
