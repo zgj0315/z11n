@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
             if let Err(e) = pull_llm_task_question(tx_clone).await {
                 log::error!("pull_llm_task_question err: {}", e);
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         }
     });
     tokio::spawn(async move {
@@ -38,6 +38,7 @@ async fn push_llm_task_answer(
             id: llm_task_question.id.clone(),
             content: "this is answer".to_string(),
         };
+        log::info!("push_llm_task_answer task: {}", llm_task_question.id);
         let rsp = client.push_llm_task_answer(llm_task_answer).await?;
         log::info!("rsp: {rsp:?}");
     }
@@ -49,10 +50,9 @@ async fn pull_llm_task_question(
 ) -> anyhow::Result<()> {
     let mut client = build_client(&Z11N_AGENT_TOML.server.addr).await?;
     let rsp = client.pull_llm_task_question(Empty {}).await?;
-    while let Some(llm_task_question) = &rsp.get_ref().llm_task_question {
+    if let Some(llm_task_question) = &rsp.get_ref().llm_task_question {
         log::info!("llm_task_question: {llm_task_question:?}");
         tx.send(llm_task_question.clone()).await?;
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     }
     Ok(())
 }
