@@ -143,6 +143,7 @@ static WHITE_API_SET: Lazy<HashSet<(Method, &'static str)>> = Lazy::new(|| {
         (Method::GET, "/api/agents"),
         (Method::GET, "/api/hosts"),
         (Method::POST, "/api/hosts"),
+        (Method::GET, "/api/llm_tasks"),
     ])
 });
 pub struct RequireAuth;
