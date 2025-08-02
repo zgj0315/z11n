@@ -97,22 +97,15 @@ async fn query(
     };
     let mut llm_tasks = Vec::new();
     for tbl_llm_task in tbl_llm_tasks {
-        let req_pull_at = match tbl_llm_task.req_pull_at {
-            Some(v) => Some(v.and_utc().timestamp_millis()),
-            None => None,
-        };
-        let rsp_push_at = match tbl_llm_task.rsp_push_at {
-            Some(v) => Some(v.and_utc().timestamp_millis()),
-            None => None,
-        };
-        let rsp_pull_at = match tbl_llm_task.rsp_pull_at {
-            Some(v) => Some(v.and_utc().timestamp_millis()),
-            None => None,
-        };
-        let rsp_content = match tbl_llm_task.rsp_content {
-            Some(v) => Some(v),
-            None => None,
-        };
+        let req_pull_at = tbl_llm_task
+            .req_pull_at
+            .map(|v| v.and_utc().timestamp_millis());
+        let rsp_push_at = tbl_llm_task
+            .rsp_push_at
+            .map(|v| v.and_utc().timestamp_millis());
+        let rsp_pull_at = tbl_llm_task
+            .rsp_pull_at
+            .map(|v| v.and_utc().timestamp_millis());
         llm_tasks.push(QueryOutputDto {
             id: tbl_llm_task.id,
             model: tbl_llm_task.model,
@@ -120,7 +113,7 @@ async fn query(
             req_content: tbl_llm_task.req_content,
             req_push_at: tbl_llm_task.req_push_at.and_utc().timestamp_millis(),
             req_pull_at,
-            rsp_content,
+            rsp_content: tbl_llm_task.rsp_content.clone(),
             rsp_push_at,
             rsp_pull_at,
         });
@@ -150,18 +143,15 @@ async fn detail(Path(id): Path<String>, State(app_state): State<AppState>) -> im
     {
         Ok(op) => match op {
             Some(tbl_llm_task) => {
-                let req_pull_at = match tbl_llm_task.req_pull_at {
-                    Some(v) => Some(v.and_utc().timestamp_millis()),
-                    None => None,
-                };
-                let rsp_push_at = match tbl_llm_task.rsp_push_at {
-                    Some(v) => Some(v.and_utc().timestamp_millis()),
-                    None => None,
-                };
-                let rsp_pull_at = match tbl_llm_task.rsp_pull_at {
-                    Some(v) => Some(v.and_utc().timestamp_millis()),
-                    None => None,
-                };
+                let req_pull_at = tbl_llm_task
+                    .req_pull_at
+                    .map(|v| v.and_utc().timestamp_millis());
+                let rsp_push_at = tbl_llm_task
+                    .rsp_push_at
+                    .map(|v| v.and_utc().timestamp_millis());
+                let rsp_pull_at = tbl_llm_task
+                    .rsp_pull_at
+                    .map(|v| v.and_utc().timestamp_millis());
                 (
                     StatusCode::OK,
                     Json(json!({

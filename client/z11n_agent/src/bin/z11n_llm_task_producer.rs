@@ -41,7 +41,6 @@ async fn pull_llm_task_answer() -> anyhow::Result<()> {
                     llm_task_answer.id,
                     llm_task_answer.content
                 );
-                break;
             }
         }
         Err(e) => {
