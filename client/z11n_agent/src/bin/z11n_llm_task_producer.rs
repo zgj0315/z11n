@@ -58,7 +58,7 @@ async fn pull_llm_task_answer() -> anyhow::Result<()> {
 }
 async fn push_llm_task_question() -> anyhow::Result<()> {
     let llm_task_question_req = LlmTaskQuestionReq {
-        model: "gemma3".to_string(),
+        model: "gemma2:27b".to_string(),
         prompt: "你是一个资深的Rust程序员专家".to_string(),
         content: "如何遍历一个enum".to_string(),
     };
