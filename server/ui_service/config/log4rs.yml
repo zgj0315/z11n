@@ -27,7 +27,7 @@ root:
   level: info
   appenders:
     - file
-    - stdout
+    # - stdout
 
 loggers:
   sqlx::query:
