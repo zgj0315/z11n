@@ -63,13 +63,32 @@ cargo update
 cargo zigbuild -r --target=x86_64-unknown-linux-musl
 cd ../
 
-# z11n_agent
-cp client/target/x86_64-unknown-linux-musl/release/z11n_agent z11n_client/z11n_agent/bin/
-cp script/service z11n_client/z11n_agent/bin/
-chmod +x z11n_client/z11n_agent/bin/*
-cp client/z11n_agent/config/* z11n_client/z11n_agent/config
+# z11n_llm_task_consumer
+mkdir -p z11n_llm_task_consumer/bin
+mkdir -p z11n_llm_task_consumer/config
+mkdir -p z11n_llm_task_consumer/log
 
-# tar client pkg
-tar --disable-copyfile -zcvf z11n_client.tar.gz z11n_client
-rm -rf z11n_client
-echo "make z11n_client.tar.gz success"
+cp client/target/x86_64-unknown-linux-musl/release/z11n_llm_task_consumer z11n_llm_task_consumer/bin/
+cp script/service z11n_llm_task_consumer/bin/
+chmod +x z11n_llm_task_consumer/bin/*
+cp client/z11n_agent/config/* z11n_llm_task_consumer/config
+
+# tar z11n_llm_task_consumer pkg
+tar --disable-copyfile -zcvf z11n_llm_task_consumer.tar.gz z11n_llm_task_consumer
+rm -rf z11n_llm_task_consumer
+echo "make z11n_llm_task_consumer.tar.gz success"
+
+# z11n_llm_task_producer
+mkdir -p z11n_llm_task_producer/bin
+mkdir -p z11n_llm_task_producer/config
+mkdir -p z11n_llm_task_producer/log
+
+cp client/target/x86_64-unknown-linux-musl/release/z11n_llm_task_producer z11n_llm_task_producer/bin/
+cp script/service z11n_llm_task_producer/bin/
+chmod +x z11n_llm_task_producer/bin/*
+cp client/z11n_agent/config/* z11n_llm_task_producer/config
+
+# tar z11n_llm_task_producer pkg
+tar --disable-copyfile -zcvf z11n_llm_task_producer.tar.gz z11n_llm_task_producer
+rm -rf z11n_llm_task_producer
+echo "make z11n_llm_task_producer.tar.gz success"

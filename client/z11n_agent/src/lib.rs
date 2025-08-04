@@ -68,6 +68,10 @@ pub async fn agent_register() -> anyhow::Result<()> {
     };
     let version = env!("CARGO_PKG_VERSION");
     log::info!("agent_id: {agent_id}, version: {version}");
+    let agent_version_config = Path::new("./config/.agent_version");
+    let mut file = File::create(agent_version_config)?;
+    file.write_all(version.as_bytes())?;
+
     let register_req = RegisterReq {
         agent_id: agent_id.clone(),
         agent_version: version.to_string(),
