@@ -1,3 +1,4 @@
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use z11n_agent::{
     agent_register, build_client,
@@ -6,8 +7,14 @@ use z11n_agent::{
     proto::{Empty, LlmTaskAnswer, LlmTaskQuestion},
 };
 
+#[derive(Parser, Debug)]
+#[command(version)]
+struct Args {}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let _args = Args::parse();
+
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
     log::info!("llm task consumer starting");
     agent_register().await?;
