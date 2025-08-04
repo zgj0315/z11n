@@ -4,7 +4,8 @@
 - [ ] 调研如何将 Server 端发出的扫描数据包传递到 Agent 上
 - [ ] 前端国际化方案调研
 - [ ] 调研 handlebars 实现kv内容的显示
-- [ ] 系统升级（升级包制作，上传升级包+升级动作）
+- [ ] 平台升级功能
+- [ ] Agent升级功能
 ### 20250802
 - [x] llm task broker ui
 - [x] llm task broker agent debug
