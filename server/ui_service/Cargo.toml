@@ -9,6 +9,7 @@ axum = {version = "0.8.4", features = ["multipart"]}
 axum-server = {version = "0.7.2", features = ["tls-rustls"]}
 bincode = "2.0.1"
 chrono = "0.4.41"
+clap = {version = "4.5.42", features = ["derive"]}
 config = "0.15.13"
 entity = {path = "../entity"}
 futures = "0.3.31"

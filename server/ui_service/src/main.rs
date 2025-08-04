@@ -8,6 +8,7 @@ use std::{
 
 use axum::{Router, middleware::from_extractor_with_state};
 use axum_server::tls_rustls::RustlsConfig;
+use clap::Parser;
 use migration::{Migrator, MigratorTrait};
 use rustls::crypto;
 use sea_orm::Database;
@@ -21,8 +22,13 @@ use ui_service::{
     uds::listen_uds,
 };
 
+#[derive(Parser, Debug)]
+#[command(version)]
+struct Args {}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let _args = Args::parse();
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
 
     let db_dir = Path::new("../db");

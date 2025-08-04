@@ -1,3 +1,4 @@
+use clap::Parser;
 use client_service::{
     agent,
     config::CLIENT_SERVICE_TOML,
@@ -18,8 +19,13 @@ use tonic::{
     transport::{Identity, Server, ServerTlsConfig},
 };
 
+#[derive(Parser, Debug)]
+#[command(version)]
+struct Args {}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let _args = Args::parse();
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
     log::info!("client service starting");
 

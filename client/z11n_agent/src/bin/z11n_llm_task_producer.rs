@@ -1,3 +1,4 @@
+use clap::Parser;
 use z11n_agent::{
     agent_register, build_client,
     config::Z11N_AGENT_TOML,
@@ -5,8 +6,14 @@ use z11n_agent::{
     proto::{Empty, LlmTaskQuestionReq},
 };
 
+#[derive(Parser, Debug)]
+#[command(version)]
+struct Args {}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let _args = Args::parse();
+
     log4rs::init_file("./config/log4rs.yml", Default::default())?;
     log::info!("llm task producer starting");
     agent_register().await?;
