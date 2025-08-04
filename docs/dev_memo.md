@@ -6,10 +6,11 @@
 - [ ] 调研 handlebars 实现kv内容的显示
 - [ ] 平台升级功能
 - [ ] Agent升级功能
+### 20250804
+- [x] bin文件输出版本号
 ### 20250802
 - [x] llm task broker ui
 - [x] llm task broker agent debug
-- [x] bin文件输出版本号
 ### 20250801
 - [x] llm task broker agent
 ### 20250728
