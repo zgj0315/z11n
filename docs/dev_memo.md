@@ -8,6 +8,7 @@
 - [ ] Agent升级功能
 ### 20250804
 - [x] bin文件输出版本号
+- [x] server deploy to 172.16.104.97
 ### 20250802
 - [x] llm task broker ui
 - [x] llm task broker agent debug

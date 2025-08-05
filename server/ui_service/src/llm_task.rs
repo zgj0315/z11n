@@ -16,7 +16,7 @@ use crate::AppState;
 pub fn routers(state: AppState) -> Router {
     Router::new()
         .route("/llm_tasks", get(query))
-        .route("/llm_tasks/{id}", get(detail))
+        .route("/llm_tasks/{id}", get(detail).delete(delete))
         .with_state(state)
 }
 
@@ -173,6 +173,29 @@ async fn detail(Path(id): Path<String>, State(app_state): State<AppState>) -> im
         Err(e) => {
             log::error!("find llm_task {} db err: {}", id, e);
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+async fn delete(Path(id): Path<String>, State(app_state): State<AppState>) -> impl IntoResponse {
+    match tbl_llm_task::Entity::delete_by_id(&id)
+        .exec(&app_state.db_conn)
+        .await
+    {
+        Ok(delete_result) => {
+            if delete_result.rows_affected == 1 {
+                log::info!("delete llm task {id} success");
+            } else {
+                log::warn!(
+                    "delete llm task {id} success, affected row: {}",
+                    delete_result.rows_affected
+                );
+            }
+            StatusCode::OK
+        }
+        Err(e) => {
+            log::error!("delete llm task {id} db err: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
         }
     }
 }
