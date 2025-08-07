@@ -31,6 +31,9 @@ cargo run
 cd server/ui_service
 cargo watch -x run
 
+# 初始化前端模块
+npm create vite@latest ui_web -- --template react-ts
+
 # 启动前端模块
 cd server/ui_web
 npm run dev
