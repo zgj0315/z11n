@@ -21,6 +21,23 @@ pub struct Model {
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::tbl_agent::Entity",
+        from = "Column::ReqAgentId",
+        to = "super::tbl_agent::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    TblAgent2,
+    #[sea_orm(
+        belongs_to = "super::tbl_agent::Entity",
+        from = "Column::RspAgentId",
+        to = "super::tbl_agent::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    TblAgent1,
+}
 
 impl ActiveModelBehavior for ActiveModel {}

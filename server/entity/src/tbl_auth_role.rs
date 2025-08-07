@@ -4,13 +4,13 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
-#[sea_orm(table_name = "tbl_auth_user")]
+#[sea_orm(table_name = "tbl_auth_role")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    pub username: String,
-    pub password: String,
-    pub created_at: DateTime,
+    pub name: String,
+    #[sea_orm(column_type = "VarBinary(StringLen::None)")]
+    pub apis: Vec<u8>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -25,12 +25,12 @@ impl Related<super::tbl_auth_user_role::Entity> for Entity {
     }
 }
 
-impl Related<super::tbl_auth_role::Entity> for Entity {
+impl Related<super::tbl_auth_user::Entity> for Entity {
     fn to() -> RelationDef {
-        super::tbl_auth_user_role::Relation::TblAuthRole.def()
+        super::tbl_auth_user_role::Relation::TblAuthUser.def()
     }
     fn via() -> Option<RelationDef> {
-        Some(super::tbl_auth_user_role::Relation::TblAuthUser.def().rev())
+        Some(super::tbl_auth_user_role::Relation::TblAuthRole.def().rev())
     }
 }
 

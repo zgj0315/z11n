@@ -1,5 +1,7 @@
 use sea_orm_migration::{prelude::*, schema::*};
 
+use crate::m20250722_172354_create_tbl_agent::TblAgent;
+
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -22,6 +24,18 @@ impl MigrationTrait for Migration {
                     .col(string_null(TblLlmTask::RspContent))
                     .col(date_time_null(TblLlmTask::RspPushAt))
                     .col(date_time_null(TblLlmTask::RspPullAt))
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(TblLlmTask::Table, TblLlmTask::ReqAgentId)
+                            .to(TblAgent::Table, TblAgent::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(TblLlmTask::Table, TblLlmTask::RspAgentId)
+                            .to(TblAgent::Table, TblAgent::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .to_owned(),
             )
             .await

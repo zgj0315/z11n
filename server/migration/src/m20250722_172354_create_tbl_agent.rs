@@ -29,7 +29,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum TblAgent {
+pub enum TblAgent {
     Table,
     Id,
     Version,
