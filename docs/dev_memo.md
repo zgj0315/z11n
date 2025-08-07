@@ -6,6 +6,9 @@
 - [ ] 调研 handlebars 实现kv内容的显示
 - [ ] 平台升级功能
 - [ ] Agent升级功能
+- [ ] 用户，角色权限控制
+### 20250807
+- [x] 合并ui_service和client_service
 ### 20250804
 - [x] bin文件输出版本号
 - [x] server deploy to 172.16.104.97
