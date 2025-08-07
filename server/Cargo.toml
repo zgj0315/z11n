@@ -7,4 +7,5 @@ members = [
   "migration",
   "entity",
   "pub_lib",
+  "z11n_server",
 ]
