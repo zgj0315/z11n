@@ -6,29 +6,6 @@ set -x
 cd "$(dirname "${0}")" || exit
 cd ../
 
-# clean
-rm -rf z11n_server.tar.gz
-rm -rf z11n_server
-rm -rf z11n_client.tar.gz
-rm -rf z11n_client
-
-# make dir
-mkdir -p z11n_server/db
-mkdir -p z11n_server/client_service/bin
-mkdir -p z11n_server/client_service/config
-mkdir -p z11n_server/client_service/log
-mkdir -p z11n_server/client_service/data
-
-mkdir -p z11n_server/ui_service/bin
-mkdir -p z11n_server/ui_service/config
-mkdir -p z11n_server/ui_service/log
-mkdir -p z11n_server/ui_service/data
-mkdir -p z11n_server/ui_service/html
-
-mkdir -p z11n_client/z11n_agent/bin
-mkdir -p z11n_client/z11n_agent/config
-mkdir -p z11n_client/z11n_agent/log
-
 # build server
 cd server
 cargo update
@@ -38,19 +15,23 @@ npm install
 npm run build
 cd ../../
 
-# make pkg
-# client_service
-cp server/target/x86_64-unknown-linux-musl/release/client_service z11n_server/client_service/bin/
-cp script/service z11n_server/client_service/bin/
-chmod +x z11n_server/client_service/bin/*
-cp server/client_service/config/* z11n_server/client_service/config
+# clean server
+rm -rf z11n_server.tar.gz
+rm -rf z11n_server
 
-# ui_service
-cp server/target/x86_64-unknown-linux-musl/release/ui_service z11n_server/ui_service/bin/
-cp script/service z11n_server/ui_service/bin/
-chmod +x z11n_server/ui_service/bin/*
-cp server/ui_service/config/* z11n_server/ui_service/config
-cp -r server/ui_web/dist/* z11n_server/ui_service/html
+# make server dir
+mkdir -p z11n_server/bin
+mkdir -p z11n_server/config
+mkdir -p z11n_server/log
+mkdir -p z11n_server/data
+mkdir -p z11n_server/html
+
+# copy server file
+cp server/target/x86_64-unknown-linux-musl/release/z11n_server z11n_server/bin/
+cp script/service z11n_server/bin/
+chmod +x z11n_server/bin/*
+cp server/z11n_server/config/* z11n_server/config
+cp -r server/ui_web/dist/* z11n_server/html
 
 # tar server pkg
 tar --disable-copyfile -zcvf z11n_server.tar.gz z11n_server
@@ -62,6 +43,26 @@ cd client
 cargo update
 cargo zigbuild -r --target=x86_64-unknown-linux-musl
 cd ../
+
+# clean client
+rm -rf z11n_agent.tar.gz
+rm -rf z11n_agent
+
+# make client dir
+mkdir -p z11n_agent/bin
+mkdir -p z11n_agent/config
+mkdir -p z11n_agent/log
+
+# copy file
+cp client/target/x86_64-unknown-linux-musl/release/z11n_agent z11n_agent/bin/
+cp script/service z11n_agent/bin/
+chmod +x z11n_agent/bin/*
+cp client/z11n_agent/config/* z11n_agent/config
+
+# tar z11n_agent pkg
+tar --disable-copyfile -zcvf z11n_agent.tar.gz z11n_agent
+rm -rf z11n_agent
+echo "make z11n_agent.tar.gz success"
 
 # z11n_llm_task_consumer
 mkdir -p z11n_llm_task_consumer/bin
