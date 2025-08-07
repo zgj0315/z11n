@@ -1,19 +1,32 @@
-use crate::proto::{
-    Empty, HeartbeatRsp, HostReq, LlmTaskAnswer, LlmTaskAnswers, LlmTaskId, LlmTaskQuestion,
-    LlmTaskQuestionReq, LlmTaskQuestionRsp, RegisterReq, RegisterRsp,
-    z11n_service_server::Z11nService,
+use std::fs;
+
+use crate::{
+    agent,
+    config::CLIENT_SERVICE_TOML,
+    proto::{
+        Empty, HeartbeatRsp, HostReq, LlmTaskAnswer, LlmTaskAnswers, LlmTaskId, LlmTaskQuestion,
+        LlmTaskQuestionReq, LlmTaskQuestionRsp, RegisterReq, RegisterRsp,
+        z11n_service_server::{Z11nService, Z11nServiceServer},
+    },
 };
 use entity::{tbl_agent, tbl_host, tbl_llm_task};
 use moka::sync::Cache;
 use prost::Message;
 use pub_lib::AgentState;
+use rustls::crypto::{CryptoProvider, ring};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
     IntoActiveModel, QueryFilter,
 };
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::{Code, Request, Response, Status, metadata::MetadataMap, service::Interceptor};
+use tonic::{
+    Code, Request, Response, Status,
+    codec::CompressionEncoding,
+    metadata::MetadataMap,
+    service::{Interceptor, interceptor::InterceptedService},
+    transport::{Identity, Server, ServerTlsConfig},
+};
 
 #[derive(Debug, Clone)]
 pub struct Z11nInterceptor {}
@@ -462,4 +475,35 @@ impl Z11nService for Z11nServer {
         }
         return Ok(Response::new(LlmTaskAnswers { items: results }));
     }
+}
+
+pub async fn serve(db_conn: sea_orm::DatabaseConnection, sled_db: sled::Db) -> anyhow::Result<()> {
+    CryptoProvider::install_default(ring::default_provider())
+        .expect("failed to install CryptoProvider");
+
+    let online_agent_cache = agent::init_cache(&db_conn).await?;
+
+    let server = Z11nServer {
+        db_conn,
+        online_agent_cache,
+        sled_db,
+    };
+    let service = Z11nServiceServer::new(server)
+        .send_compressed(CompressionEncoding::Gzip)
+        .accept_compressed(CompressionEncoding::Gzip)
+        .max_decoding_message_size(8 * 1024 * 1024)
+        .max_encoding_message_size(8 * 1024 * 1024);
+    let z11n_interceptor = Z11nInterceptor {};
+    let cert = fs::read("./config/z11n-ca.crt")?;
+    let key = fs::read("./config/z11n-ca.key")?;
+    let identity = Identity::from_pem(cert, key);
+    let addr = CLIENT_SERVICE_TOML.server.addr.parse()?;
+    log::info!("client service listening on {}", addr);
+    log::info!("client service is running");
+    Server::builder()
+        .tls_config(ServerTlsConfig::new().identity(identity))?
+        .add_service(InterceptedService::new(service, z11n_interceptor))
+        .serve(addr)
+        .await?;
+    Ok(())
 }
