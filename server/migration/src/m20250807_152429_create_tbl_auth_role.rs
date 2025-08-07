@@ -9,12 +9,11 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(TblAuthUser::Table)
+                    .table(TblAuthRole::Table)
                     .if_not_exists()
-                    .col(pk_auto(TblAuthUser::Id))
-                    .col(string(TblAuthUser::Username))
-                    .col(string(TblAuthUser::Password))
-                    .col(date_time(TblAuthUser::CreatedAt).default(Expr::current_timestamp()))
+                    .col(pk_auto(TblAuthRole::Id))
+                    .col(string(TblAuthRole::Name))
+                    .col(binary(TblAuthRole::Apis))
                     .to_owned(),
             )
             .await
@@ -22,16 +21,15 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(TblAuthUser::Table).to_owned())
+            .drop_table(Table::drop().table(TblAuthRole::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-pub enum TblAuthUser {
+pub enum TblAuthRole {
     Table,
     Id,
-    Username,
-    Password,
-    CreatedAt,
+    Name,
+    Apis,
 }
