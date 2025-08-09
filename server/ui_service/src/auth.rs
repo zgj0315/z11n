@@ -5,26 +5,28 @@ use axum::{
     extract::{ConnectInfo, FromRequestParts, Path, Query, State},
     http::{Method, StatusCode, header, request::Parts},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, patch, post},
 };
 use bincode::{Decode, Encode};
 use chrono::Utc;
 use entity::{tbl_auth_role, tbl_auth_user};
 use once_cell::sync::Lazy;
 use sea_orm::{
-    ActiveValue::Set, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, IntoActiveModel, PaginatorTrait,
+    QueryFilter, QueryOrder,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use validator::Validate;
 
 use crate::AppState;
+
 pub fn routers(state: AppState) -> Router {
     Router::new()
         .route("/login", post(login))
         .route("/logout/{token}", post(logout))
         .route("/roles", get(role_query).post(create))
-        // .route("/roles/{id}", patch(update))
+        .route("/roles/{id}", patch(update))
         .with_state(state)
 }
 #[derive(Deserialize, Debug, Validate)]
@@ -389,6 +391,55 @@ async fn create(
         }
         Err(e) => {
             log::error!("tbl_auth_role insert err: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Validate)]
+struct UpdateInputDto {
+    id: i32,
+    name: String,
+    restful_apis: Vec<RestfulApi>,
+}
+async fn update(
+    app_state: State<AppState>,
+    Json(update_input_dto): Json<UpdateInputDto>,
+) -> impl IntoResponse {
+    let tbl_auth_role = match tbl_auth_role::Entity::find_by_id(update_input_dto.id)
+        .one(&app_state.db_conn)
+        .await
+    {
+        Ok(op) => match op {
+            Some(v) => v,
+            None => {
+                log::error!("tbl_auth_role {} not exist", update_input_dto.id);
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+        },
+        Err(e) => {
+            log::error!("tbl_auth_role find by id err: {}", e);
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    };
+    let encoded: Vec<u8> =
+        match bincode::encode_to_vec(&update_input_dto.restful_apis, bincode::config::standard()) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("bincode::encode_to_vec err: {}", e);
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+        };
+    let mut tbl_auth_role_am = tbl_auth_role.into_active_model();
+    tbl_auth_role_am.name = Set(update_input_dto.name);
+    tbl_auth_role_am.apis = Set(encoded);
+
+    match tbl_auth_role_am.save(&app_state.db_conn).await {
+        Ok(_) => {
+            return StatusCode::OK.into_response();
+        }
+        Err(e) => {
+            log::error!("tbl_auth_role save err: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
