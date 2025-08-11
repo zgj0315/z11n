@@ -6,6 +6,7 @@
 - [ ] 调研 handlebars 实现kv内容的显示
 - [ ] 平台升级功能
 - [ ] Agent升级功能
+### 20250808
 - [ ] 用户，角色权限控制
 ### 20250807
 - [x] 合并ui_service和client_service
