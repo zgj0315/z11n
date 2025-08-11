@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Button, Form, Input, message, Table, Popconfirm, Upload } from "antd";
+import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import restful_api from "./RESTfulApi.tsx";
 import dayjs from "dayjs";
-import { UploadOutlined } from "@ant-design/icons";
-import type { UploadProps } from "antd";
 import { useNavigate } from "react-router-dom";
 
 type Agent = {
@@ -24,34 +22,6 @@ const App: React.FC = () => {
   const [page, setPage] = useState<Page>();
   const [loading, setLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-
-  const create_props: UploadProps = {
-    name: "file",
-    showUploadList: false,
-    customRequest: async (options) => {
-      const { file, onSuccess, onProgress } = options;
-
-      const formData = new FormData();
-      formData.append("file", file as Blob);
-
-      try {
-        const response = await restful_api.post("/api/agents", formData, {
-          onUploadProgress: (event) => {
-            if (event.total) {
-              const percent = Math.round((event.loaded * 100) / event.total);
-              onProgress?.({ percent });
-            }
-          },
-        });
-        onSuccess?.(response.data);
-        message.success(`${(file as File).name} uploaded successfully`);
-        handleQuery();
-      } catch (error) {
-        console.error("Upload error:", error);
-        message.error(`${(file as File).name} upload failed.`);
-      }
-    },
-  };
 
   const handleQuery = async (
     page = current,
@@ -171,13 +141,6 @@ const App: React.FC = () => {
             查询
           </Button>
         </Form.Item>
-        {isLoggedIn && (
-          <Form.Item>
-            <Upload {...create_props}>
-              <Button icon={<UploadOutlined />}>上传文件</Button>
-            </Upload>
-          </Form.Item>
-        )}
       </Form>
 
       <Table
