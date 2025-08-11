@@ -13,7 +13,6 @@ use entity::{tbl_agent, tbl_host, tbl_llm_task};
 use moka::sync::Cache;
 use prost::Message;
 use pub_lib::AgentState;
-use rustls::crypto::{CryptoProvider, ring};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, DatabaseConnection, EntityTrait,
     IntoActiveModel, QueryFilter,
@@ -478,9 +477,6 @@ impl Z11nService for Z11nServer {
 }
 
 pub async fn serve(db_conn: sea_orm::DatabaseConnection, sled_db: sled::Db) -> anyhow::Result<()> {
-    CryptoProvider::install_default(ring::default_provider())
-        .expect("failed to install CryptoProvider");
-
     let online_agent_cache = agent::init_cache(&db_conn).await?;
 
     let server = Z11nServer {

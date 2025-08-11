@@ -1,6 +1,7 @@
 use clap::Parser;
 use client_service::{server, uds};
 use migration::{Migrator, MigratorTrait};
+use rustls::crypto::{CryptoProvider, ring};
 use sea_orm::Database;
 
 use std::{
@@ -51,5 +52,7 @@ async fn main() -> anyhow::Result<()> {
             log::error!("uds::connect_uds err: {}", e);
         }
     });
+    CryptoProvider::install_default(ring::default_provider())
+        .expect("failed to install CryptoProvider");
     server::serve(db_conn, sled_db).await
 }
