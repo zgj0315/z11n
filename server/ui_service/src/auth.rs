@@ -225,53 +225,6 @@ async fn login(
                 }
             }
             None => {
-                // 初始化admin数据
-                if login_input_dto.username.eq("admin")
-                    && login_input_dto.password.eq("123qwe!@#QWE")
-                {
-                    let tbl_auth_user_am = tbl_auth_user::ActiveModel {
-                        username: Set(login_input_dto.username),
-                        password: Set(login_input_dto.password),
-                        ..Default::default()
-                    };
-                    match tbl_auth_user::Entity::insert(tbl_auth_user_am)
-                        .exec(&app_state.db_conn)
-                        .await
-                    {
-                        Ok(_) => {
-                            let token = uuid::Uuid::new_v4().to_string();
-
-                            let token_value = TokenValue {
-                                expired_time: chrono::Utc::now().timestamp(),
-                                owend_restful_apis: RESTFUL_APIS.clone(),
-                            };
-                            let encoded: Vec<u8> = match bincode::encode_to_vec(
-                                &token_value,
-                                bincode::config::standard(),
-                            ) {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    log::error!("bincode::encode_to_vec err: {}", e);
-                                    return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-                                }
-                            };
-                            if let Err(e) = app_state.sled_db.insert(token.clone(), &*encoded) {
-                                log::error!("sled db insert err: {}", e);
-                            }
-                            return (
-                                StatusCode::OK,
-                                Json(json!({
-                                    "token": token
-                                })),
-                            )
-                                .into_response();
-                        }
-                        Err(e) => {
-                            log::error!("tbl_auth_user insert err: {}", e);
-                            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-                        }
-                    }
-                }
                 log::warn!("user {} not exists", login_input_dto.username);
                 StatusCode::UNAUTHORIZED.into_response()
             }
@@ -901,4 +854,72 @@ async fn user_update(
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
+}
+
+pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<()> {
+    // 初始化角色
+    let super_role_name = "超级管理员";
+    let super_admin_username = "sa";
+    let encoded: Vec<u8> = bincode::encode_to_vec(&*RESTFUL_APIS, bincode::config::standard())?;
+    let super_role_id = match tbl_auth_role::Entity::find()
+        .filter(tbl_auth_role::Column::Name.eq(super_role_name))
+        .one(&db_conn)
+        .await?
+    {
+        Some(tbl_auth_role) => {
+            let role_id = tbl_auth_role.id;
+            let mut tbl_auth_role_am = tbl_auth_role.into_active_model();
+            tbl_auth_role_am.apis = Set(encoded);
+            tbl_auth_role_am.save(&db_conn).await?;
+            role_id
+        }
+        None => {
+            let tbl_auth_role_am = tbl_auth_role::ActiveModel {
+                name: Set("超级管理员".to_string()),
+                apis: Set(encoded),
+                ..Default::default()
+            };
+            let insert_result = tbl_auth_role::Entity::insert(tbl_auth_role_am)
+                .exec(&db_conn)
+                .await?;
+            insert_result.last_insert_id
+        }
+    };
+
+    // 初始化admin
+    let super_admin_id = match tbl_auth_user::Entity::find()
+        .filter(tbl_auth_user::Column::Username.eq(super_admin_username))
+        .one(&db_conn)
+        .await?
+    {
+        Some(tbl_auth_user) => tbl_auth_user.id,
+        None => {
+            let tbl_auth_user_am = tbl_auth_user::ActiveModel {
+                username: Set("sa".to_string()),
+                password: Set("123qwe!@#QWE".to_string()),
+                ..Default::default()
+            };
+            let insert_result = tbl_auth_user::Entity::insert(tbl_auth_user_am)
+                .exec(&db_conn)
+                .await?;
+            insert_result.last_insert_id
+        }
+    };
+
+    // 初始化用户和角色关系表
+    let count = tbl_auth_user_role::Entity::find()
+        .filter(tbl_auth_user_role::Column::UserId.eq(super_admin_id))
+        .filter(tbl_auth_user_role::Column::RoleId.eq(super_role_id))
+        .count(&db_conn)
+        .await?;
+    if count < 1 {
+        let tbl_auth_user_role_am = tbl_auth_user_role::ActiveModel {
+            user_id: Set(super_admin_id),
+            role_id: Set(super_role_id),
+        };
+        tbl_auth_user_role::Entity::insert(tbl_auth_user_role_am)
+            .exec(&db_conn)
+            .await?;
+    }
+    Ok(())
 }
