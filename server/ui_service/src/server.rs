@@ -12,7 +12,7 @@ use tower_http::services::{ServeDir, ServeFile};
 
 use crate::{
     AppState, agent,
-    auth::{self, RequireAuth},
+    auth::{self, RequireAuth, auth_init},
     config::UI_SERVICE_TOML,
     host, llm_task,
     z11n::HeartbeatRsp,
@@ -23,6 +23,7 @@ pub async fn serve(
     sled_db: sled::Db,
     tx_heartbeat_rsp: broadcast::Sender<(String, HeartbeatRsp)>,
 ) -> anyhow::Result<()> {
+    auth_init(db_conn.clone()).await?;
     auth::token_expired_task(sled_db.clone()).await?;
     let app_state = AppState {
         db_conn,
