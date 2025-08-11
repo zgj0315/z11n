@@ -21,6 +21,96 @@ use validator::Validate;
 
 use crate::AppState;
 
+static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
+    let mut restful_apis = Vec::new();
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "api/agents".to_string(),
+        name: "Agent查询".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "api/agents/".to_string(),
+        name: "Agent详情".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "DELETE".to_string(),
+        path: "api/agents/".to_string(),
+        name: "Agent删除".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "POST".to_string(),
+        path: "api/login".to_string(),
+        name: "登录".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "POST".to_string(),
+        path: "api/logout".to_string(),
+        name: "退出".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "api/roles".to_string(),
+        name: "角色查询".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "POST".to_string(),
+        path: "api/roles".to_string(),
+        name: "角色新增".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "PATCH".to_string(),
+        path: "api/roles/".to_string(),
+        name: "角色修改".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "api/users".to_string(),
+        name: "用户查询".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "POST".to_string(),
+        path: "api/users".to_string(),
+        name: "用户新增".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "PATCH".to_string(),
+        path: "api/users/".to_string(),
+        name: "用户修改".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "api/hosts".to_string(),
+        name: "主机查询".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "api/hosts/".to_string(),
+        name: "主机详情".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "DELETE".to_string(),
+        path: "api/hosts/".to_string(),
+        name: "主机删除".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "api/llm_tasks".to_string(),
+        name: "大语言模型任务查询".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "api/llm_tasks/".to_string(),
+        name: "大语言模型任务详情".to_string(),
+    });
+    restful_apis.push(RestfulApi {
+        method: "DELETE".to_string(),
+        path: "api/llm_tasks/".to_string(),
+        name: "大语言模型任务删除".to_string(),
+    });
+    restful_apis
+});
+
 pub fn routers(state: AppState) -> Router {
     Router::new()
         .route("/login", post(login))
@@ -48,26 +138,75 @@ async fn login(
         Ok(tbl_auth_user_op) => match tbl_auth_user_op {
             Some(tbl_auth_user) => {
                 if tbl_auth_user.password.eq(&login_input_dto.password) {
-                    let token = uuid::Uuid::new_v4().to_string();
-                    if let Err(e) = app_state
-                        .sled_db
-                        .insert(token.clone(), &chrono::Utc::now().timestamp().to_be_bytes())
+                    let role_ids = match tbl_auth_user_role::Entity::find()
+                        .select_only()
+                        .column(tbl_auth_user_role::Column::RoleId)
+                        .filter(tbl_auth_user_role::Column::UserId.eq(tbl_auth_user.id))
+                        .into_tuple::<i32>()
+                        .all(&app_state.db_conn)
+                        .await
                     {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log::error!("tbl_auth_user_role find err: {}", e);
+                            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                        }
+                    };
+                    let tbl_auth_roles = match tbl_auth_role::Entity::find()
+                        .filter(tbl_auth_role::Column::Id.is_in(role_ids))
+                        .all(&app_state.db_conn)
+                        .await
+                    {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log::error!("tbl_auth_role find err: {}", e);
+                            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                        }
+                    };
+                    let mut owend_restful_apis = Vec::new();
+                    for tbl_auth_role in tbl_auth_roles {
+                        let (restful_apis, _len): (Vec<RestfulApi>, usize) =
+                            match bincode::decode_from_slice(
+                                &tbl_auth_role.apis[..],
+                                bincode::config::standard(),
+                            ) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    log::error!("bincode::decode_from_slice err: {}", e);
+                                    continue;
+                                }
+                            };
+                        for restful_api in restful_apis {
+                            // 暴力插入，这里需要去重
+                            owend_restful_apis.push(restful_api);
+                        }
+                    }
+                    let token = uuid::Uuid::new_v4().to_string();
+
+                    let token_value = TokenValue {
+                        expired_time: chrono::Utc::now().timestamp(),
+                        owend_restful_apis,
+                    };
+                    let encoded: Vec<u8> =
+                        match bincode::encode_to_vec(&token_value, bincode::config::standard()) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                log::error!("bincode::encode_to_vec err: {}", e);
+                                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                            }
+                        };
+                    if let Err(e) = app_state.sled_db.insert(token.clone(), &*encoded) {
                         log::error!("sled db insert err: {}", e);
                     }
                     (
                         StatusCode::OK,
-                        [("code", "200"), ("msg", "ok")],
                         Json(json!({
                             "token": token
                         })),
                     )
+                        .into_response()
                 } else {
-                    (
-                        StatusCode::UNAUTHORIZED,
-                        [("code", "401"), ("msg", "UNAUTHORIZED")],
-                        Json(json!({})),
-                    )
+                    StatusCode::UNAUTHORIZED.into_response()
                 }
             }
             None => {
@@ -86,45 +225,45 @@ async fn login(
                     {
                         Ok(_) => {
                             let token = uuid::Uuid::new_v4().to_string();
-                            if let Err(e) = app_state.sled_db.insert(
-                                token.clone(),
-                                &chrono::Utc::now().timestamp().to_be_bytes(),
+
+                            let token_value = TokenValue {
+                                expired_time: chrono::Utc::now().timestamp(),
+                                owend_restful_apis: RESTFUL_APIS.clone(),
+                            };
+                            let encoded: Vec<u8> = match bincode::encode_to_vec(
+                                &token_value,
+                                bincode::config::standard(),
                             ) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    log::error!("bincode::encode_to_vec err: {}", e);
+                                    return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                                }
+                            };
+                            if let Err(e) = app_state.sled_db.insert(token.clone(), &*encoded) {
                                 log::error!("sled db insert err: {}", e);
                             }
                             return (
                                 StatusCode::OK,
-                                [("code", "200"), ("msg", "ok")],
                                 Json(json!({
                                     "token": token
                                 })),
-                            );
+                            )
+                                .into_response();
                         }
                         Err(e) => {
                             log::error!("tbl_auth_user insert err: {}", e);
-                            return (
-                                StatusCode::INTERNAL_SERVER_ERROR,
-                                [("code", "500"), ("msg", "tbl_auth_user insert err")],
-                                Json(json!({})),
-                            );
+                            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
                         }
                     }
                 }
                 log::warn!("user {} not exists", login_input_dto.username);
-                (
-                    StatusCode::UNAUTHORIZED,
-                    [("code", "401"), ("msg", "UNAUTHORIZED")],
-                    Json(json!({})),
-                )
+                StatusCode::UNAUTHORIZED.into_response()
             }
         },
         Err(e) => {
             log::error!("tbl_auth_user find err: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                [("code", "500"), ("msg", "tbl_auth_user find err")],
-                Json(json!({})),
-            )
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
@@ -203,29 +342,69 @@ where
             .and_then(|value| value.to_str().ok())
         {
             if let Some((_, token)) = authorization.split_once(" ") {
-                match state.sled_db.contains_key(token) {
-                    Ok(is_contains) => {
-                        if is_contains {
-                            if let Err(e) = state
-                                .sled_db
-                                .insert(token, &chrono::Utc::now().timestamp().to_be_bytes())
-                            {
-                                log::error!("sled db insert err: {}", e);
+                match state.sled_db.get(token) {
+                    Ok(op) => match op {
+                        Some(v) => {
+                            let (mut token_value, _len): (TokenValue, usize) =
+                                match bincode::decode_from_slice(
+                                    &v[..],
+                                    bincode::config::standard(),
+                                ) {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        log::error!("bincode::decode_from_slice err: {}", e);
+                                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                                    }
+                                };
+                            let mut is_auth = false;
+                            for restful_api in &token_value.owend_restful_apis {
+                                if restful_api.method.eq(&parts.method.to_string()) {
+                                    if parts.uri.path().starts_with(&restful_api.path) {
+                                        is_auth = true;
+                                        break;
+                                    }
+                                }
                             }
-                            log::info!(
-                                "auth success {} {} {}",
-                                src_ip,
-                                parts.method,
-                                parts.uri.path()
-                            );
-                            return Ok(Self);
-                        } else {
+                            if is_auth {
+                                token_value.expired_time = chrono::Utc::now().timestamp();
+                                let encoded: Vec<u8> = match bincode::encode_to_vec(
+                                    &token_value,
+                                    bincode::config::standard(),
+                                ) {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        log::error!("bincode::encode_to_vec err: {}", e);
+                                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                                    }
+                                };
+                                if let Err(e) = state.sled_db.insert(token, &*encoded) {
+                                    log::error!("sled db insert err: {}", e);
+                                }
+                                log::info!(
+                                    "auth success {} {} {}",
+                                    src_ip,
+                                    parts.method,
+                                    parts.uri.path()
+                                );
+                                return Ok(Self);
+                            } else {
+                                log::warn!(
+                                    "access denied {} {} {}",
+                                    src_ip,
+                                    parts.method,
+                                    parts.uri.path()
+                                );
+                                return Err(StatusCode::FORBIDDEN);
+                            }
+                        }
+                        None => {
                             log::warn!("sled db not contains token: {}", token);
                             return Err(StatusCode::UNAUTHORIZED);
                         }
-                    }
+                    },
                     Err(e) => {
-                        log::error!("sled db contains key err: {}", e);
+                        log::error!("sled_db get {} err: {}", token, e);
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 }
             }
@@ -240,24 +419,32 @@ where
     }
 }
 
+#[derive(Serialize, Deserialize, Encode, Decode, Debug)]
+struct TokenValue {
+    expired_time: i64,
+    owend_restful_apis: Vec<RestfulApi>,
+}
+
 pub async fn token_expired_task(sled_db: sled::Db) -> anyhow::Result<()> {
     let expired_time = 6 * 60 * 60; // 6小时
     tokio::spawn(async move {
         log::info!("token_expired_task running");
         loop {
             for (k, v) in sled_db.iter().flatten() {
-                let ts_now = Utc::now().timestamp();
+                let (token_value, _len): (TokenValue, usize) =
+                    match bincode::decode_from_slice(&v[..], bincode::config::standard()) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log::error!("bincode::decode_from_slice err: {}", e);
+                            log::warn!("forced sled_db.remove {:?}", k);
+                            if let Err(e) = sled_db.remove(&k) {
+                                log::error!("sled remove err: {}", e);
+                            }
+                            continue;
+                        }
+                    };
 
-                let ts = v
-                    .as_ref()
-                    .try_into()
-                    .map(i64::from_be_bytes)
-                    .unwrap_or_else(|e| {
-                        log::error!("v.as_ref().try_into() err: {}", e);
-                        0
-                    });
-
-                if ts_now - ts >= expired_time {
+                if Utc::now().timestamp() - token_value.expired_time >= expired_time {
                     if let Err(e) = sled_db.remove(&k) {
                         log::error!("sled remove err: {}", e);
                     }
@@ -281,15 +468,20 @@ struct RoleQueryInputDto {
 struct RoleQueryOutputDto {
     id: i32,
     name: String,
-    restful_apis: Vec<RestfulApi>,
+    restful_apis: Vec<RestfulApiWithAuth>,
 }
 
 #[derive(Serialize, Deserialize, Encode, Decode, Debug)]
+struct RestfulApiWithAuth {
+    restful_api: RestfulApi,
+    is_owned: bool,
+}
+
+#[derive(Serialize, Deserialize, Encode, Decode, Debug, Clone)]
 struct RestfulApi {
     method: String,
     path: String,
     name: String,
-    is_owned: bool,
 }
 
 async fn role_query(
@@ -331,7 +523,7 @@ async fn role_query(
     let mut roles = Vec::new();
     for tbl_auth_role in tbl_auth_roles {
         let encoded = tbl_auth_role.apis;
-        let (restful_apis, _len): (Vec<RestfulApi>, usize) =
+        let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
             match bincode::decode_from_slice(&encoded[..], bincode::config::standard()) {
                 Ok(v) => v,
                 Err(e) => {
@@ -339,10 +531,27 @@ async fn role_query(
                     continue;
                 }
             };
+        let mut restful_apis_with_auth = Vec::new();
+        for restful_api in RESTFUL_APIS.iter() {
+            let mut is_owned = false;
+            for owned_restful_api in &owned_restful_apis {
+                if restful_api.method.eq(&owned_restful_api.method)
+                    && restful_api.path.eq(&owned_restful_api.path)
+                {
+                    is_owned = true;
+                    continue;
+                }
+            }
+            restful_apis_with_auth.push(RestfulApiWithAuth {
+                restful_api: restful_api.clone(),
+                is_owned,
+            });
+        }
+
         roles.push(RoleQueryOutputDto {
             id: tbl_auth_role.id,
             name: tbl_auth_role.name,
-            restful_apis,
+            restful_apis: restful_apis_with_auth,
         });
     }
     (
@@ -366,7 +575,7 @@ async fn role_query(
 #[derive(Deserialize, Debug, Validate)]
 struct RoleCreateInputDto {
     name: String,
-    restful_apis: Vec<RestfulApi>,
+    restful_apis: Vec<RestfulApiWithAuth>,
 }
 async fn role_create(
     app_state: State<AppState>,
@@ -403,7 +612,7 @@ async fn role_create(
 struct RoleUpdateInputDto {
     id: i32,
     name: String,
-    restful_apis: Vec<RestfulApi>,
+    restful_apis: Vec<RestfulApiWithAuth>,
 }
 async fn role_update(
     app_state: State<AppState>,
@@ -516,7 +725,6 @@ async fn user_query(
             }
         };
         let tbl_auth_roles = match tbl_auth_role::Entity::find()
-            .column(tbl_auth_role::Column::Apis)
             .filter(tbl_auth_role::Column::Id.is_in(role_ids))
             .all(&app_state.db_conn)
             .await
@@ -529,20 +737,37 @@ async fn user_query(
         };
         let mut roles = Vec::new();
         for tbl_auth_role in tbl_auth_roles {
-            let (restful_apis, _len): (Vec<RestfulApi>, usize) = match bincode::decode_from_slice(
-                &tbl_auth_role.apis[..],
-                bincode::config::standard(),
-            ) {
-                Ok(v) => v,
-                Err(e) => {
-                    log::error!("bincode::decode_from_slice err: {}", e);
-                    continue;
+            let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
+                match bincode::decode_from_slice(
+                    &tbl_auth_role.apis[..],
+                    bincode::config::standard(),
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("bincode::decode_from_slice err: {}", e);
+                        continue;
+                    }
+                };
+            let mut restful_apis_with_auth = Vec::new();
+            for restful_api in RESTFUL_APIS.iter() {
+                let mut is_owned = false;
+                for owned_restful_api in &owned_restful_apis {
+                    if restful_api.method.eq(&owned_restful_api.method)
+                        && restful_api.path.eq(&owned_restful_api.path)
+                    {
+                        is_owned = true;
+                        continue;
+                    }
                 }
-            };
+                restful_apis_with_auth.push(RestfulApiWithAuth {
+                    restful_api: restful_api.clone(),
+                    is_owned,
+                });
+            }
             let role = RoleQueryOutputDto {
                 id: tbl_auth_role.id,
                 name: tbl_auth_role.name,
-                restful_apis,
+                restful_apis: restful_apis_with_auth,
             };
             roles.push(role);
         }
@@ -573,7 +798,7 @@ async fn user_query(
 #[derive(Deserialize, Debug, Validate)]
 struct UserCreateInputDto {
     name: String,
-    restful_apis: Vec<RestfulApi>,
+    restful_apis: Vec<RestfulApiWithAuth>,
 }
 async fn user_create(
     app_state: State<AppState>,
@@ -610,7 +835,7 @@ async fn user_create(
 struct UserUpdateInputDto {
     id: i32,
     name: String,
-    restful_apis: Vec<RestfulApi>,
+    restful_apis: Vec<RestfulApiWithAuth>,
 }
 async fn user_update(
     app_state: State<AppState>,
