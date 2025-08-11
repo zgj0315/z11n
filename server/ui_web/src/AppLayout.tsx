@@ -30,6 +30,16 @@ const App: React.FC = () => {
       icon: <UserOutlined />,
       label: "任务管理",
     },
+    {
+      key: "/roles",
+      icon: <UserOutlined />,
+      label: "角色管理",
+    },
+    {
+      key: "/users",
+      icon: <UserOutlined />,
+      label: "用户管理",
+    },
   ];
   const isLoggedIn = !!localStorage.getItem("token");
   if (isLoggedIn) {

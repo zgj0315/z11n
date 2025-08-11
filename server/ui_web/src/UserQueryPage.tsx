@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import restful_api from "./RESTfulApi.tsx";
-import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 
-type LlmTask = {
+type Agent = {
   id: string;
 };
 
@@ -16,7 +15,7 @@ type Page = {
 
 const App: React.FC = () => {
   const navigate = useNavigate();
-  const [llmTasks, setLlmTasks] = useState<[]>([]);
+  const [users, setUsers] = useState<[]>([]);
   const [current, setCurrent] = useState(1);
   const [page_size, setPageSize] = useState(5);
   const [page, setPage] = useState<Page>();
@@ -36,10 +35,8 @@ const App: React.FC = () => {
     if (filters?.title) params.append("title", filters.title);
     setLoading(true);
     try {
-      const response = await restful_api.get(
-        `/api/llm_tasks?${params.toString()}`
-      );
-      setLlmTasks(response.data._embedded?.llm_task);
+      const response = await restful_api.get(`/api/users?${params.toString()}`);
+      setUsers(response.data._embedded?.user);
       setPage(response.data.page);
       setCurrent(page);
       setPageSize(size);
@@ -47,13 +44,15 @@ const App: React.FC = () => {
     } catch (e) {
       console.error("查询失败: ", e);
       message.error("查询失败");
+      window.location.href = "/login";
     } finally {
       setLoading(false);
     }
   };
+
   const handleDelete = async (id: string) => {
     try {
-      await restful_api.delete(`/api/llm_tasks/${id}`);
+      await restful_api.delete(`/api/users/${id}`);
       message.success("删除成功");
       handleQuery();
     } catch (error) {
@@ -63,67 +62,21 @@ const App: React.FC = () => {
   };
   const columns = [
     {
-      title: "TaskId",
+      title: "ID",
       dataIndex: "id",
       key: "id",
     },
     {
-      title: "Model",
-      dataIndex: "model",
-      key: "model",
-    },
-    {
-      title: "Prompt",
-      dataIndex: "prompt",
-      key: "prompt",
-    },
-    {
-      title: "问题",
-      dataIndex: "req_content",
-      key: "req_content",
-    },
-    {
-      title: "问题创建时间",
-      dataIndex: "req_push_at",
-      key: "req_push_at",
-      render: (timestamp: number) =>
-        timestamp ? dayjs(timestamp).format("YYYY-MM-DD HH:mm:ss") : "--",
-    },
-    {
-      title: "问题处理时间",
-      dataIndex: "req_pull_at",
-      key: "req_pull_at",
-      render: (timestamp: number) =>
-        timestamp ? dayjs(timestamp).format("YYYY-MM-DD HH:mm:ss") : "--",
-    },
-    {
-      title: "答案",
-      dataIndex: "rsp_content",
-      key: "rsp_content",
-    },
-    {
-      title: "答案处理时间",
-      dataIndex: "rsp_push_at",
-      key: "rsp_push_at",
-      render: (timestamp: number) =>
-        timestamp ? dayjs(timestamp).format("YYYY-MM-DD HH:mm:ss") : "--",
-    },
-    {
-      title: "答案提取时间",
-      dataIndex: "rsp_pull_at",
-      key: "rsp_pull_at",
-      render: (timestamp: number) =>
-        timestamp ? dayjs(timestamp).format("YYYY-MM-DD HH:mm:ss") : "--",
+      title: "用户名",
+      dataIndex: "username",
+      key: "username",
     },
     {
       title: "操作",
       key: "action",
-      render: (_: unknown, record: LlmTask) => (
+      render: (_: unknown, record: Agent) => (
         <>
-          <Button
-            type="link"
-            onClick={() => navigate(`/llm_tasks/${record.id}`)}
-          >
+          <Button type="link" onClick={() => navigate(`/users/${record.id}`)}>
             查看
           </Button>
           {isLoggedIn && (
@@ -169,7 +122,7 @@ const App: React.FC = () => {
       </Form>
 
       <Table
-        dataSource={llmTasks}
+        dataSource={users}
         columns={columns}
         rowKey="id"
         loading={loading}

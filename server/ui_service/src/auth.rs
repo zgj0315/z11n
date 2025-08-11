@@ -69,6 +69,11 @@ static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
         name: "用户查询".to_string(),
     });
     restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "/api/users/".to_string(),
+        name: "用户详情".to_string(),
+    });
+    restful_apis.push(RestfulApi {
         method: "POST".to_string(),
         path: "/api/users".to_string(),
         name: "用户新增".to_string(),
@@ -122,8 +127,8 @@ pub fn routers(state: AppState) -> Router {
         .route("/logout/{token}", post(logout))
         .route("/roles", get(role_query).post(role_create))
         .route("/roles/{id}", patch(role_update))
-        .route("/user", get(user_query).post(user_create))
-        .route("/user/{id}", patch(user_update))
+        .route("/users", get(user_query).post(user_create))
+        .route("/users/{id}", patch(user_update))
         .with_state(state)
 }
 #[derive(Deserialize, Debug, Validate)]
@@ -660,7 +665,7 @@ async fn user_query(
     }
 
     let paginator = select
-        .order_by_desc(tbl_auth_role::Column::Id)
+        .order_by_desc(tbl_auth_user::Column::Id)
         .paginate(&app_state.db_conn, query_input_dto.size);
     let num_pages = match paginator.num_pages().await {
         Ok(v) => v,
@@ -875,7 +880,7 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
         }
         None => {
             let tbl_auth_role_am = tbl_auth_role::ActiveModel {
-                name: Set("超级管理员".to_string()),
+                name: Set(super_role_name.to_string()),
                 apis: Set(encoded),
                 ..Default::default()
             };
@@ -895,7 +900,7 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
         Some(tbl_auth_user) => tbl_auth_user.id,
         None => {
             let tbl_auth_user_am = tbl_auth_user::ActiveModel {
-                username: Set("sa".to_string()),
+                username: Set(super_admin_username.to_string()),
                 password: Set("123qwe!@#QWE".to_string()),
                 ..Default::default()
             };
