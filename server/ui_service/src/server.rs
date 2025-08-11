@@ -7,7 +7,6 @@ use std::{
 
 use axum::{Router, middleware::from_extractor_with_state};
 use axum_server::tls_rustls::RustlsConfig;
-use rustls::crypto;
 use tokio::sync::broadcast;
 use tower_http::services::{ServeDir, ServeFile};
 
@@ -49,9 +48,9 @@ pub async fn serve(
             app_state,
         )));
 
-    if let Err(e) = crypto::ring::default_provider().install_default() {
-        log::error!("default_provider install err: {:?}", e);
-    }
+    // if let Err(e) = crypto::ring::default_provider().install_default() {
+    //     log::error!("default_provider install err: {:?}", e);
+    // }
     let config = RustlsConfig::from_pem_file(
         PathBuf::from("./config").join("z11n-ca.crt"),
         PathBuf::from("./config").join("z11n-ca.key"),

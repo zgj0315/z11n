@@ -25,87 +25,92 @@ static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
     let mut restful_apis = Vec::new();
     restful_apis.push(RestfulApi {
         method: "GET".to_string(),
-        path: "api/agents".to_string(),
+        path: "/api/agents".to_string(),
         name: "Agent查询".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "GET".to_string(),
-        path: "api/agents/".to_string(),
+        path: "/api/agents/".to_string(),
         name: "Agent详情".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "DELETE".to_string(),
-        path: "api/agents/".to_string(),
+        path: "/api/agents/".to_string(),
         name: "Agent删除".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "POST".to_string(),
-        path: "api/login".to_string(),
+        path: "/api/login".to_string(),
         name: "登录".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "POST".to_string(),
-        path: "api/logout".to_string(),
+        path: "/api/logout".to_string(),
         name: "退出".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "GET".to_string(),
-        path: "api/roles".to_string(),
+        path: "/api/roles".to_string(),
         name: "角色查询".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "POST".to_string(),
-        path: "api/roles".to_string(),
+        path: "/api/roles".to_string(),
         name: "角色新增".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "PATCH".to_string(),
-        path: "api/roles/".to_string(),
+        path: "/api/roles/".to_string(),
         name: "角色修改".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "GET".to_string(),
-        path: "api/users".to_string(),
+        path: "/api/users".to_string(),
         name: "用户查询".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "POST".to_string(),
-        path: "api/users".to_string(),
+        path: "/api/users".to_string(),
         name: "用户新增".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "PATCH".to_string(),
-        path: "api/users/".to_string(),
+        path: "/api/users/".to_string(),
         name: "用户修改".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "GET".to_string(),
-        path: "api/hosts".to_string(),
+        path: "/api/hosts".to_string(),
         name: "主机查询".to_string(),
     });
     restful_apis.push(RestfulApi {
+        method: "POST".to_string(),
+        path: "/api/hosts".to_string(),
+        name: "主机更新".to_string(),
+    });
+    restful_apis.push(RestfulApi {
         method: "GET".to_string(),
-        path: "api/hosts/".to_string(),
+        path: "/api/hosts/".to_string(),
         name: "主机详情".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "DELETE".to_string(),
-        path: "api/hosts/".to_string(),
+        path: "/api/hosts/".to_string(),
         name: "主机删除".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "GET".to_string(),
-        path: "api/llm_tasks".to_string(),
+        path: "/api/llm_tasks".to_string(),
         name: "大语言模型任务查询".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "GET".to_string(),
-        path: "api/llm_tasks/".to_string(),
+        path: "/api/llm_tasks/".to_string(),
         name: "大语言模型任务详情".to_string(),
     });
     restful_apis.push(RestfulApi {
         method: "DELETE".to_string(),
-        path: "api/llm_tasks/".to_string(),
+        path: "/api/llm_tasks/".to_string(),
         name: "大语言模型任务删除".to_string(),
     });
     restful_apis
@@ -298,10 +303,10 @@ async fn logout(Path(token): Path<String>, app_state: State<AppState>) -> impl I
 static WHITE_API_SET: Lazy<HashSet<(Method, &'static str)>> = Lazy::new(|| {
     HashSet::from([
         (Method::POST, "/api/login"),
-        (Method::GET, "/api/agents"),
-        (Method::GET, "/api/hosts"),
-        (Method::POST, "/api/hosts"),
-        (Method::GET, "/api/llm_tasks"),
+        // (Method::GET, "/api/agents"),
+        // (Method::GET, "/api/hosts"),
+        // (Method::POST, "/api/hosts"),
+        // (Method::GET, "/api/llm_tasks"),
     ])
 });
 pub struct RequireAuth;
@@ -366,8 +371,16 @@ where
                                         return Err(StatusCode::INTERNAL_SERVER_ERROR);
                                     }
                                 };
+                            // log::info!("{token_value:?}");
                             let mut is_auth = false;
                             for restful_api in &token_value.owend_restful_apis {
+                                // log::info!(
+                                //     "{} vs {}, {} vs {}",
+                                //     restful_api.method,
+                                //     parts.method,
+                                //     parts.uri.path(),
+                                //     restful_api.path
+                                // );
                                 if restful_api.method.eq(&parts.method.to_string()) {
                                     if parts.uri.path().starts_with(&restful_api.path) {
                                         is_auth = true;
