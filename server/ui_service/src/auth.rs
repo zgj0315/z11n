@@ -163,7 +163,7 @@ async fn login(
                             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
                         }
                     };
-                    let mut owend_restful_apis = Vec::new();
+                    let mut owend_restful_apis: Vec<RestfulApi> = Vec::new();
                     for tbl_auth_role in tbl_auth_roles {
                         let (restful_apis, _len): (Vec<RestfulApi>, usize) =
                             match bincode::decode_from_slice(
@@ -177,8 +177,18 @@ async fn login(
                                 }
                             };
                         for restful_api in restful_apis {
-                            // 暴力插入，这里需要去重
-                            owend_restful_apis.push(restful_api);
+                            let mut is_exist = false;
+                            for owend_restful_api in &owend_restful_apis {
+                                if restful_api.method.eq(&owend_restful_api.method)
+                                    && restful_api.path.eq(&owend_restful_api.path)
+                                {
+                                    is_exist = true;
+                                    continue;
+                                }
+                            }
+                            if !is_exist {
+                                owend_restful_apis.push(restful_api);
+                            }
                         }
                     }
                     let token = uuid::Uuid::new_v4().to_string();
