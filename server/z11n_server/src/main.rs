@@ -6,6 +6,7 @@ use std::{
 use clap::Parser;
 use migration::{Migrator, MigratorTrait};
 use prost::Message;
+use rustls::crypto::{CryptoProvider, ring};
 use sea_orm::Database;
 use tokio::sync::broadcast;
 use ui_service::z11n::HeartbeatRsp;
@@ -42,6 +43,9 @@ async fn main() -> anyhow::Result<()> {
 
     let db_conn_clone = db_conn.clone();
     let heartbeat_rsp_sled_db_clone = heartbeat_rsp_sled_db.clone();
+    CryptoProvider::install_default(ring::default_provider())
+        .expect("failed to install CryptoProvider");
+
     tokio::spawn(async move {
         if let Err(e) =
             client_service::server::serve(db_conn_clone, heartbeat_rsp_sled_db_clone).await

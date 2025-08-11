@@ -48,9 +48,6 @@ pub async fn serve(
             app_state,
         )));
 
-    // if let Err(e) = crypto::ring::default_provider().install_default() {
-    //     log::error!("default_provider install err: {:?}", e);
-    // }
     let config = RustlsConfig::from_pem_file(
         PathBuf::from("./config").join("z11n-ca.crt"),
         PathBuf::from("./config").join("z11n-ca.key"),
