@@ -29,7 +29,7 @@ const App: React.FC = () => {
       })
       .catch((err) => {
         console.error("Failed to fetch system info:", err);
-        window.location.href = "/";
+        // window.location.href = "/";
       })
       .finally(() => {
         setLoading(false);
