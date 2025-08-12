@@ -109,6 +109,7 @@ const App: React.FC = () => {
           width: 300,
           height: 400,
         }}
+        disabled={true}
       />
     </>
   );
