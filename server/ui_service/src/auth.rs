@@ -126,7 +126,7 @@ pub fn routers(state: AppState) -> Router {
         .route("/login", post(login))
         .route("/logout/{token}", post(logout))
         .route("/roles", get(role_query).post(role_create))
-        .route("/roles/{id}", patch(role_update))
+        .route("/roles/{id}", patch(role_update).get(role_detail))
         .route("/users", get(user_query).post(user_create))
         .route("/users/{id}", patch(user_update))
         .with_state(state)
@@ -927,4 +927,55 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
             .await?;
     }
     Ok(())
+}
+
+async fn role_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> impl IntoResponse {
+    match tbl_auth_role::Entity::find_by_id(id)
+        .one(&app_state.db_conn)
+        .await
+    {
+        Ok(tbl_agent_op) => match tbl_agent_op {
+            Some(tbl_auth_role) => {
+                let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
+                    match bincode::decode_from_slice(
+                        &tbl_auth_role.apis[..],
+                        bincode::config::standard(),
+                    ) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log::error!("bincode::decode_from_slice err: {}", e);
+                            return StatusCode::BAD_REQUEST.into_response();
+                        }
+                    };
+                let mut restful_apis_with_auth = Vec::new();
+                for restful_api in RESTFUL_APIS.iter() {
+                    let mut is_owned = false;
+                    for api in &owned_restful_apis {
+                        if api.method.eq(&restful_api.method) && api.path.eq(&restful_api.path) {
+                            is_owned = true;
+                            break;
+                        }
+                    }
+                    restful_apis_with_auth.push(RestfulApiWithAuth {
+                        restful_api: restful_api.clone(),
+                        is_owned,
+                    });
+                }
+                (
+                    StatusCode::OK,
+                    Json(json!({
+                        "id":tbl_auth_role.id,
+                        "name":tbl_auth_role.name,
+                        "apis":restful_apis_with_auth,
+                    })),
+                )
+                    .into_response()
+            }
+            None => StatusCode::BAD_REQUEST.into_response(),
+        },
+        Err(e) => {
+            log::error!("find agent {} db err: {}", id, e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
