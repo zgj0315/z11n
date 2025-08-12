@@ -10,6 +10,7 @@ import LlmTaskQueryPage from "./LlmTaskQueryPage.tsx";
 import LlmTaskDetailPage from "./LlmTaskDetailPage.tsx";
 import RoleQueryPage from "./RoleQueryPage.tsx";
 import RoleDetailPage from "./RoleDetailPage.tsx";
+import RoleCreatePage from "./RoleCreatePage.tsx";
 import UserQueryPage from "./UserQueryPage.tsx";
 import UserDetailPage from "./UserDetailPage.tsx";
 
@@ -26,6 +27,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="llm_tasks" element={<LlmTaskQueryPage />} />
         <Route path="llm_tasks/:id" element={<LlmTaskDetailPage />} />
         <Route path="roles" element={<RoleQueryPage />} />
+        <Route path="roles/create" element={<RoleCreatePage />} />
         <Route path="roles/:id" element={<RoleDetailPage />} />
         <Route path="users" element={<UserQueryPage />} />
         <Route path="users/:id" element={<UserDetailPage />} />

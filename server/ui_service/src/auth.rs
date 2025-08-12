@@ -64,6 +64,11 @@ static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
         name: "角色修改".to_string(),
     });
     restful_apis.push(RestfulApi {
+        method: "DELETE".to_string(),
+        path: "/api/roles/".to_string(),
+        name: "角色修改".to_string(),
+    });
+    restful_apis.push(RestfulApi {
         method: "GET".to_string(),
         path: "/api/users".to_string(),
         name: "用户查询".to_string(),
@@ -118,6 +123,11 @@ static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
         path: "/api/llm_tasks/".to_string(),
         name: "大语言模型任务删除".to_string(),
     });
+    restful_apis.push(RestfulApi {
+        method: "GET".to_string(),
+        path: "/api/restful_apis".to_string(),
+        name: "接口列表".to_string(),
+    });
     restful_apis
 });
 
@@ -126,9 +136,13 @@ pub fn routers(state: AppState) -> Router {
         .route("/login", post(login))
         .route("/logout/{token}", post(logout))
         .route("/roles", get(role_query).post(role_create))
-        .route("/roles/{id}", patch(role_update).get(role_detail))
+        .route(
+            "/roles/{id}",
+            patch(role_update).get(role_detail).delete(role_delete),
+        )
         .route("/users", get(user_query).post(user_create))
         .route("/users/{id}", patch(user_update))
+        .route("/restful_apis", get(restful_apis))
         .with_state(state)
 }
 #[derive(Deserialize, Debug, Validate)]
@@ -556,7 +570,7 @@ async fn role_query(
 #[derive(Deserialize, Debug, Validate)]
 struct RoleCreateInputDto {
     name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
+    restful_apis: Vec<RestfulApi>,
 }
 async fn role_create(
     app_state: State<AppState>,
@@ -976,6 +990,43 @@ async fn role_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> 
         Err(e) => {
             log::error!("find agent {} db err: {}", id, e);
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+async fn role_delete(Path(id): Path<i32>, State(app_state): State<AppState>) -> impl IntoResponse {
+    match tbl_auth_role::Entity::delete_by_id(id)
+        .exec(&app_state.db_conn)
+        .await
+    {
+        Ok(delete_result) => {
+            if delete_result.rows_affected == 1 {
+                log::info!("tbl_auth_role {} delete success", id)
+            } else {
+                log::warn!(
+                    "tbl_auth_role {} delete success, but affect row: {}",
+                    id,
+                    delete_result.rows_affected
+                )
+            }
+            StatusCode::OK.into_response()
+        }
+        Err(e) => {
+            log::error!("find agent {} db err: {}", id, e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+async fn restful_apis() -> impl IntoResponse {
+    let restful_apis = RESTFUL_APIS.clone();
+    match serde_json::to_value(&restful_apis) {
+        Ok(v) => {
+            return (StatusCode::OK, Json(v)).into_response();
+        }
+        Err(e) => {
+            log::error!("RESTFUL_APIS to value err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     }
 }
