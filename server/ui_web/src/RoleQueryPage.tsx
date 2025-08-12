@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import restful_api from "./RESTfulApi.tsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 type Agent = {
   id: string;
@@ -118,6 +118,7 @@ const App: React.FC = () => {
           <Button type="primary" htmlType="submit">
             查询
           </Button>
+          <Button type="link"><Link to="/roles/create">创建角色</Link></Button>
         </Form.Item>
       </Form>
 
