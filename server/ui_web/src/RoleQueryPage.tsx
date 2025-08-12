@@ -25,14 +25,14 @@ const App: React.FC = () => {
   const handleQuery = async (
     page = current,
     size = page_size,
-    filters?: { title?: string; content?: string }
+    filters?: { name?: string }
   ) => {
     console.log("handleQuery page: ", page);
     console.log("handleQuery size: ", size);
     const params = new URLSearchParams();
     params.append("size", size.toString());
     params.append("page", (page - 1).toString());
-    if (filters?.title) params.append("title", filters.title);
+    if (filters?.name) params.append("name", filters.name);
     setLoading(true);
     try {
       const response = await restful_api.get(`/api/roles?${params.toString()}`);
@@ -67,7 +67,7 @@ const App: React.FC = () => {
       key: "id",
     },
     {
-      title: "名称",
+      title: "角色名称",
       dataIndex: "name",
       key: "name",
     },
@@ -111,8 +111,8 @@ const App: React.FC = () => {
         onFinish={(values) => handleQuery(1, page_size, values)}
         style={{ marginTop: 16 }}
       >
-        <Form.Item name="title" label="标题">
-          <Input placeholder="请输入标题关键字" />
+        <Form.Item name="name" label="角色名称">
+          <Input placeholder="请输入角色名称关键字" />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit">

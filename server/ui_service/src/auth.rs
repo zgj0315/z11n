@@ -141,7 +141,7 @@ pub fn routers(state: AppState) -> Router {
             patch(role_update).get(role_detail).delete(role_delete),
         )
         .route("/users", get(user_query).post(user_create))
-        .route("/users/{id}", patch(user_update))
+        .route("/users/{id}", patch(user_update).get(user_detail))
         .route("/restful_apis", get(restful_apis))
         .with_state(state)
 }
@@ -1027,6 +1027,94 @@ async fn restful_apis() -> impl IntoResponse {
         Err(e) => {
             log::error!("RESTFUL_APIS to value err: {}", e);
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    }
+}
+
+async fn user_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> impl IntoResponse {
+    match tbl_auth_user::Entity::find_by_id(id)
+        .one(&app_state.db_conn)
+        .await
+    {
+        Ok(op) => match op {
+            Some(tbl_auth_user) => {
+                let role_ids = match tbl_auth_user_role::Entity::find()
+                    .select_only()
+                    .column(tbl_auth_user_role::Column::RoleId)
+                    .filter(tbl_auth_user_role::Column::UserId.eq(tbl_auth_user.id))
+                    .into_tuple::<i32>()
+                    .all(&app_state.db_conn)
+                    .await
+                {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("tbl_auth_user_role find err: {}", e);
+                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                    }
+                };
+                let tbl_auth_roles = match tbl_auth_role::Entity::find()
+                    .filter(tbl_auth_role::Column::Id.is_in(role_ids))
+                    .all(&app_state.db_conn)
+                    .await
+                {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("tbl_auth_role find err: {}", e);
+                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                    }
+                };
+                let mut roles = Vec::new();
+                for tbl_auth_role in tbl_auth_roles {
+                    let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
+                        match bincode::decode_from_slice(
+                            &tbl_auth_role.apis[..],
+                            bincode::config::standard(),
+                        ) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                log::error!("bincode::decode_from_slice err: {}", e);
+                                continue;
+                            }
+                        };
+                    let mut restful_apis_with_auth = Vec::new();
+                    for restful_api in RESTFUL_APIS.iter() {
+                        let mut is_owned = false;
+                        for owned_restful_api in &owned_restful_apis {
+                            if restful_api.method.eq(&owned_restful_api.method)
+                                && restful_api.path.eq(&owned_restful_api.path)
+                            {
+                                is_owned = true;
+                                continue;
+                            }
+                        }
+                        restful_apis_with_auth.push(RestfulApiWithAuth {
+                            restful_api: restful_api.clone(),
+                            is_owned,
+                        });
+                    }
+                    let role = RoleQueryOutputDto {
+                        id: tbl_auth_role.id,
+                        name: tbl_auth_role.name,
+                        restful_apis: restful_apis_with_auth,
+                    };
+                    roles.push(role);
+                }
+
+                (
+                    StatusCode::OK,
+                    Json(json!({
+                        "id":tbl_auth_user.id,
+                        "name":tbl_auth_user.username,
+                        "roles":roles,
+                    })),
+                )
+                    .into_response()
+            }
+            None => StatusCode::BAD_REQUEST.into_response(),
+        },
+        Err(e) => {
+            log::error!("find agent {} db err: {}", id, e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }

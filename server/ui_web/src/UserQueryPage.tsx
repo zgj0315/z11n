@@ -25,14 +25,14 @@ const App: React.FC = () => {
   const handleQuery = async (
     page = current,
     size = page_size,
-    filters?: { title?: string; content?: string }
+    filters?: { username?: string }
   ) => {
     console.log("handleQuery page: ", page);
     console.log("handleQuery size: ", size);
     const params = new URLSearchParams();
     params.append("size", size.toString());
     params.append("page", (page - 1).toString());
-    if (filters?.title) params.append("title", filters.title);
+    if (filters?.username) params.append("username", filters.username);
     setLoading(true);
     try {
       const response = await restful_api.get(`/api/users?${params.toString()}`);
@@ -111,8 +111,8 @@ const App: React.FC = () => {
         onFinish={(values) => handleQuery(1, page_size, values)}
         style={{ marginTop: 16 }}
       >
-        <Form.Item name="title" label="标题">
-          <Input placeholder="请输入标题关键字" />
+        <Form.Item name="username" label="用户名">
+          <Input placeholder="请输入用户名关键字" />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit">
