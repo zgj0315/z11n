@@ -4,19 +4,6 @@ import { Descriptions, Spin } from "antd";
 import type { DescriptionsProps } from "antd";
 import restful_api from "./RESTfulApi.tsx";
 
-function jsonToDescriptionsItems(obj: Record<string, unknown>) {
-  return Object.entries(obj)
-    .filter(([key]) => key !== "processes")
-    .map(([key, value], index) => ({
-      key: key + index,
-      label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      children:
-        typeof value === "object"
-          ? JSON.stringify(value, null, 2)
-          : String(value),
-    }));
-}
-
 const App: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [items, setItems] = useState<DescriptionsProps["items"]>([]);
@@ -25,7 +12,27 @@ const App: React.FC = () => {
     restful_api
       .get(`/api/roles/${id}`)
       .then((res) => {
-        setItems(jsonToDescriptionsItems(res.data));
+        const data = res.data;
+        const baseItems: DescriptionsProps["items"] = [
+          {
+            key: "id",
+            label: "ID",
+            children: data.id,
+          },
+          {
+            key: "name",
+            label: "角色名称",
+            children: data.name,
+          },
+        ];
+        const apiItems: DescriptionsProps["items"] = data.apis.map(
+          (api: unknown, index: number) => ({
+            key: `api-${index}`,
+            label: `${api.restful_api.method}`,
+            children: `${api.restful_api.name} (${api.restful_api.path} ${api.is_owned})`,
+          })
+        );
+        setItems([...baseItems, ...apiItems]);
       })
       .catch((err) => {
         console.error("Failed to fetch system info:", err);
