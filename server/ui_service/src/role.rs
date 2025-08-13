@@ -95,7 +95,7 @@ async fn role_query(
         roles.push(RoleQueryOutputDto {
             id: tbl_auth_role.id,
             name: tbl_auth_role.name,
-            restful_apis: restful_apis,
+            restful_apis,
         });
     }
     (
@@ -143,7 +143,7 @@ async fn role_create(
         .await
     {
         Ok(_) => {
-            return StatusCode::OK.into_response();
+            StatusCode::OK.into_response()
         }
         Err(e) => {
             log::error!("tbl_auth_role insert err: {}", e);
@@ -192,7 +192,7 @@ async fn role_update(
 
     match tbl_auth_role_am.save(&app_state.db_conn).await {
         Ok(_) => {
-            return StatusCode::OK.into_response();
+            StatusCode::OK.into_response()
         }
         Err(e) => {
             log::error!("tbl_auth_role save err: {}", e);
@@ -267,11 +267,11 @@ async fn restful_apis() -> impl IntoResponse {
     let restful_apis = RESTFUL_APIS.clone();
     match serde_json::to_value(&restful_apis) {
         Ok(v) => {
-            return (StatusCode::OK, Json(v)).into_response();
+            (StatusCode::OK, Json(v)).into_response()
         }
         Err(e) => {
             log::error!("RESTFUL_APIS to value err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
