@@ -33,6 +33,27 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    interface RestfulApi {
+      method: string;
+      path: string;
+      name: string;
+    }
+    restful_api
+      .get(`/api/restful_apis`)
+      .then((res) => {
+        const transferData: ApiRecord[] = res.data.map(
+          (restful_api: RestfulApi) => ({
+            key: `${restful_api.method}-${restful_api.path}`,
+            title: `${restful_api.name}`,
+            description: `${restful_api.method} ${restful_api.path}`,
+          })
+        );
+        setApiData(transferData);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch system info:", err);
+      })
+      .finally(() => {});
     restful_api
       .get(`/api/users/${id}`)
       .then((res) => {
@@ -45,29 +66,22 @@ const App: React.FC = () => {
         ];
         setItems(baseItems);
 
-        // 遍历所有角色的 restful_apis
-        // const allApis: ApiRecord[] = [];
-        // const ownedKeys: string[] = [];
         const apiMap = new Map<string, ApiRecord>();
         const ownedKeysSet = new Set<string>();
 
         data.roles.forEach((role) => {
-          role.restful_apis.forEach((api) => {
-            const key = `${api.restful_api.method}-${api.restful_api.path}`;
+          role.restful_apis.forEach((restful_api) => {
+            const key = `${restful_api.method}-${restful_api.path}`;
             if (!apiMap.has(key)) {
               apiMap.set(key, {
                 key,
-                title: api.restful_api.name,
-                description: `${api.restful_api.method} ${api.restful_api.path}`,
+                title: restful_api.name,
+                description: `${restful_api.method} ${restful_api.path}`,
               });
-            }
-            if (api.is_owned) {
               ownedKeysSet.add(key);
             }
           });
         });
-
-        setApiData(Array.from(apiMap.values()));
         setTargetKeys(Array.from(ownedKeysSet));
       })
       .catch((err) => {
