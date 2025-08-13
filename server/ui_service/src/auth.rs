@@ -89,6 +89,11 @@ pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
         name: "用户修改".to_string(),
     });
     restful_apis.push(RestfulApi {
+        method: "DELETE".to_string(),
+        path: "/api/users/".to_string(),
+        name: "用户删除".to_string(),
+    });
+    restful_apis.push(RestfulApi {
         method: "GET".to_string(),
         path: "/api/hosts".to_string(),
         name: "主机查询".to_string(),
