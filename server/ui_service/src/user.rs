@@ -159,6 +159,22 @@ async fn user_create(
     app_state: State<AppState>,
     Json(create_input_dto): Json<UserCreateInputDto>,
 ) -> impl IntoResponse {
+    match tbl_auth_user::Entity::find()
+        .filter(tbl_auth_user::Column::Username.eq(&create_input_dto.username))
+        .count(&app_state.db_conn)
+        .await
+    {
+        Ok(count) => {
+            if count > 0 {
+                log::warn!("username {} exist", create_input_dto.username);
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+        }
+        Err(e) => {
+            log::error!("tbl_auth_user find err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    }
     let tbl_auth_user_am = tbl_auth_user::ActiveModel {
         username: Set(create_input_dto.username),
         password: Set(create_input_dto.password),
@@ -200,51 +216,66 @@ async fn user_create(
 
 #[derive(Deserialize, Debug, Validate)]
 struct UserUpdateInputDto {
-    id: i32,
-    name: String,
-    restful_apis: Vec<RestfulApi>,
+    username: Option<String>,
+    password: Option<String>,
+    role_ids: Vec<i32>,
 }
 async fn user_update(
+    Path(id): Path<i32>,
     app_state: State<AppState>,
     Json(update_input_dto): Json<UserUpdateInputDto>,
 ) -> impl IntoResponse {
-    let tbl_auth_role = match tbl_auth_role::Entity::find_by_id(update_input_dto.id)
+    let tbl_auth_user = match tbl_auth_user::Entity::find_by_id(id)
         .one(&app_state.db_conn)
         .await
     {
         Ok(op) => match op {
             Some(v) => v,
             None => {
-                log::error!("tbl_auth_role {} not exist", update_input_dto.id);
+                log::error!("user id {} not exist", id);
                 return StatusCode::BAD_REQUEST.into_response();
             }
         },
         Err(e) => {
-            log::error!("tbl_auth_role find by id err: {}", e);
-            return StatusCode::BAD_REQUEST.into_response();
+            log::error!("tbl_auth_user find err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     };
-    let encoded: Vec<u8> =
-        match bincode::encode_to_vec(&update_input_dto.restful_apis, bincode::config::standard()) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("bincode::encode_to_vec err: {}", e);
-                return StatusCode::BAD_REQUEST.into_response();
-            }
-        };
-    let mut tbl_auth_role_am = tbl_auth_role.into_active_model();
-    tbl_auth_role_am.name = Set(update_input_dto.name);
-    tbl_auth_role_am.apis = Set(encoded);
-
-    match tbl_auth_role_am.save(&app_state.db_conn).await {
-        Ok(_) => {
-            return StatusCode::OK.into_response();
-        }
-        Err(e) => {
-            log::error!("tbl_auth_role save err: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+    let mut tbl_auth_user_am = tbl_auth_user.into_active_model();
+    if let Some(username) = update_input_dto.username {
+        tbl_auth_user_am.username = Set(username);
     }
+    if let Some(password) = update_input_dto.password {
+        tbl_auth_user_am.password = Set(password);
+    }
+    if let Err(e) = tbl_auth_user_am.save(&app_state.db_conn).await {
+        log::error!("tbl_auth_user save err: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+    if let Err(e) = tbl_auth_user_role::Entity::delete_many()
+        .filter(tbl_auth_user_role::Column::UserId.eq(id))
+        .exec(&app_state.db_conn)
+        .await
+    {
+        log::error!("tbl_auth_user delete many err: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    let mut tbl_auth_user_role_ams = Vec::new();
+    for role_id in update_input_dto.role_ids {
+        tbl_auth_user_role_ams.push(tbl_auth_user_role::ActiveModel {
+            user_id: Set(id),
+            role_id: Set(role_id),
+        });
+    }
+    if let Err(e) = tbl_auth_user_role::Entity::insert_many(tbl_auth_user_role_ams)
+        .exec(&app_state.db_conn)
+        .await
+    {
+        log::error!("tbl_auth_user insert many err: {}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+    StatusCode::OK.into_response()
 }
 
 async fn user_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> impl IntoResponse {
@@ -305,7 +336,7 @@ async fn user_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> 
                     StatusCode::OK,
                     Json(json!({
                         "id":tbl_auth_user.id,
-                        "name":tbl_auth_user.username,
+                        "username":tbl_auth_user.username,
                         "roles":roles,
                     })),
                 )
