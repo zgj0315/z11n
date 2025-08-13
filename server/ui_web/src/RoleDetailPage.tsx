@@ -10,6 +10,12 @@ interface ApiRecord {
   description: string;
 }
 
+interface RestfulApi {
+  method: string;
+  path: string;
+  name: string;
+}
+
 const App: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [items, setItems] = useState<DescriptionsProps["items"]>([]);
@@ -46,6 +52,24 @@ const App: React.FC = () => {
 
   useEffect(() => {
     restful_api
+      .get(`/api/restful_apis`)
+      .then((res) => {
+        const transferData: ApiRecord[] = res.data.map(
+          (restful_api: RestfulApi) => ({
+            key: `${restful_api.method}-${restful_api.path}`,
+            title: `${restful_api.name}`,
+            description: `${restful_api.method} ${restful_api.path}`,
+          })
+        );
+        // console.log("transferData: ", transferData);
+        setApiData(transferData);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch system info:", err);
+      })
+      .finally(() => {});
+
+    restful_api
       .get(`/api/roles/${id}`)
       .then((res) => {
         const data = res.data;
@@ -62,20 +86,14 @@ const App: React.FC = () => {
           },
         ];
         setItems(baseItems);
-        const transferData: ApiRecord[] = data.apis.map(
-          (api: unknown, index: number) => ({
-            key: String(index),
-            title: `${api.restful_api.name}`,
-            description: `${api.restful_api.method} ${api.restful_api.path}`,
-          })
-        );
-        const ownedKeys = data.apis
-          .map((api: unknown, index: number) =>
-            api.is_owned ? String(index) : null
+        // console.log("baseItems: ", baseItems);
+        const ownedKeys = data.restful_apis
+          .map(
+            (restful_api: RestfulApi) =>
+              `${restful_api.method}-${restful_api.path}`
           )
           .filter((key: string | null) => key !== null) as string[];
-
-        setApiData(transferData);
+        // console.log("ownedKeys: ", ownedKeys);
         setTargetKeys(ownedKeys);
       })
       .catch((err) => {

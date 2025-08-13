@@ -187,7 +187,7 @@ async fn login(
                             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
                         }
                     };
-                    let mut owend_restful_apis: Vec<RestfulApi> = Vec::new();
+                    let mut distinct_restful_apis: Vec<RestfulApi> = Vec::new();
                     for tbl_auth_role in tbl_auth_roles {
                         let (restful_apis, _len): (Vec<RestfulApi>, usize) =
                             match bincode::decode_from_slice(
@@ -202,7 +202,7 @@ async fn login(
                             };
                         for restful_api in restful_apis {
                             let mut is_exist = false;
-                            for owend_restful_api in &owend_restful_apis {
+                            for owend_restful_api in &distinct_restful_apis {
                                 if restful_api.method.eq(&owend_restful_api.method)
                                     && restful_api.path.eq(&owend_restful_api.path)
                                 {
@@ -211,7 +211,7 @@ async fn login(
                                 }
                             }
                             if !is_exist {
-                                owend_restful_apis.push(restful_api);
+                                distinct_restful_apis.push(restful_api);
                             }
                         }
                     }
@@ -219,7 +219,7 @@ async fn login(
 
                     let token_value = TokenValue {
                         expired_time: chrono::Utc::now().timestamp(),
-                        owend_restful_apis,
+                        restful_apis: distinct_restful_apis,
                     };
                     let encoded: Vec<u8> =
                         match bincode::encode_to_vec(&token_value, bincode::config::standard()) {
@@ -345,7 +345,7 @@ where
                                 };
                             // log::info!("{token_value:?}");
                             let mut is_auth = false;
-                            for restful_api in &token_value.owend_restful_apis {
+                            for restful_api in &token_value.restful_apis {
                                 // log::info!(
                                 //     "{} vs {}, {} vs {}",
                                 //     restful_api.method,
@@ -417,7 +417,7 @@ where
 #[derive(Serialize, Deserialize, Encode, Decode, Debug)]
 struct TokenValue {
     expired_time: i64,
-    owend_restful_apis: Vec<RestfulApi>,
+    restful_apis: Vec<RestfulApi>,
 }
 
 pub async fn token_expired_task(sled_db: sled::Db) -> anyhow::Result<()> {
@@ -463,14 +463,14 @@ struct RoleQueryInputDto {
 struct RoleQueryOutputDto {
     id: i32,
     name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
+    restful_apis: Vec<RestfulApi>,
 }
 
-#[derive(Serialize, Deserialize, Encode, Decode, Debug)]
-struct RestfulApiWithAuth {
-    restful_api: RestfulApi,
-    is_owned: bool,
-}
+// #[derive(Serialize, Deserialize, Encode, Decode, Debug)]
+// struct RestfulApiWithAuth {
+//     restful_api: RestfulApi,
+//     is_owned: bool,
+// }
 
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, Clone)]
 struct RestfulApi {
@@ -518,7 +518,7 @@ async fn role_query(
     let mut roles = Vec::new();
     for tbl_auth_role in tbl_auth_roles {
         let encoded = tbl_auth_role.apis;
-        let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
+        let (restful_apis, _len): (Vec<RestfulApi>, usize) =
             match bincode::decode_from_slice(&encoded[..], bincode::config::standard()) {
                 Ok(v) => v,
                 Err(e) => {
@@ -526,27 +526,11 @@ async fn role_query(
                     continue;
                 }
             };
-        let mut restful_apis_with_auth = Vec::new();
-        for restful_api in RESTFUL_APIS.iter() {
-            let mut is_owned = false;
-            for owned_restful_api in &owned_restful_apis {
-                if restful_api.method.eq(&owned_restful_api.method)
-                    && restful_api.path.eq(&owned_restful_api.path)
-                {
-                    is_owned = true;
-                    continue;
-                }
-            }
-            restful_apis_with_auth.push(RestfulApiWithAuth {
-                restful_api: restful_api.clone(),
-                is_owned,
-            });
-        }
 
         roles.push(RoleQueryOutputDto {
             id: tbl_auth_role.id,
             name: tbl_auth_role.name,
-            restful_apis: restful_apis_with_auth,
+            restful_apis: restful_apis,
         });
     }
     (
@@ -607,7 +591,7 @@ async fn role_create(
 struct RoleUpdateInputDto {
     id: i32,
     name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
+    restful_apis: Vec<RestfulApi>,
 }
 async fn role_update(
     app_state: State<AppState>,
@@ -732,37 +716,21 @@ async fn user_query(
         };
         let mut roles = Vec::new();
         for tbl_auth_role in tbl_auth_roles {
-            let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
-                match bincode::decode_from_slice(
-                    &tbl_auth_role.apis[..],
-                    bincode::config::standard(),
-                ) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("bincode::decode_from_slice err: {}", e);
-                        continue;
-                    }
-                };
-            let mut restful_apis_with_auth = Vec::new();
-            for restful_api in RESTFUL_APIS.iter() {
-                let mut is_owned = false;
-                for owned_restful_api in &owned_restful_apis {
-                    if restful_api.method.eq(&owned_restful_api.method)
-                        && restful_api.path.eq(&owned_restful_api.path)
-                    {
-                        is_owned = true;
-                        continue;
-                    }
+            let (restful_apis, _len): (Vec<RestfulApi>, usize) = match bincode::decode_from_slice(
+                &tbl_auth_role.apis[..],
+                bincode::config::standard(),
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    log::error!("bincode::decode_from_slice err: {}", e);
+                    continue;
                 }
-                restful_apis_with_auth.push(RestfulApiWithAuth {
-                    restful_api: restful_api.clone(),
-                    is_owned,
-                });
-            }
+            };
+
             let role = RoleQueryOutputDto {
                 id: tbl_auth_role.id,
                 name: tbl_auth_role.name,
-                restful_apis: restful_apis_with_auth,
+                restful_apis,
             };
             roles.push(role);
         }
@@ -793,7 +761,7 @@ async fn user_query(
 #[derive(Deserialize, Debug, Validate)]
 struct UserCreateInputDto {
     name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
+    restful_apis: Vec<RestfulApi>,
 }
 async fn user_create(
     app_state: State<AppState>,
@@ -830,7 +798,7 @@ async fn user_create(
 struct UserUpdateInputDto {
     id: i32,
     name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
+    restful_apis: Vec<RestfulApi>,
 }
 async fn user_update(
     app_state: State<AppState>,
@@ -877,7 +845,7 @@ async fn user_update(
 
 pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<()> {
     // 初始化角色
-    let super_role_name = "超级管理员";
+    let super_role_name = "超管角色";
     let super_admin_username = "sa";
     let encoded: Vec<u8> = bincode::encode_to_vec(&*RESTFUL_APIS, bincode::config::standard())?;
     let super_role_id = match tbl_auth_role::Entity::find()
@@ -950,7 +918,7 @@ async fn role_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> 
     {
         Ok(tbl_agent_op) => match tbl_agent_op {
             Some(tbl_auth_role) => {
-                let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
+                let (restful_apis, _len): (Vec<RestfulApi>, usize) =
                     match bincode::decode_from_slice(
                         &tbl_auth_role.apis[..],
                         bincode::config::standard(),
@@ -961,26 +929,13 @@ async fn role_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> 
                             return StatusCode::BAD_REQUEST.into_response();
                         }
                     };
-                let mut restful_apis_with_auth = Vec::new();
-                for restful_api in RESTFUL_APIS.iter() {
-                    let mut is_owned = false;
-                    for api in &owned_restful_apis {
-                        if api.method.eq(&restful_api.method) && api.path.eq(&restful_api.path) {
-                            is_owned = true;
-                            break;
-                        }
-                    }
-                    restful_apis_with_auth.push(RestfulApiWithAuth {
-                        restful_api: restful_api.clone(),
-                        is_owned,
-                    });
-                }
+
                 (
                     StatusCode::OK,
                     Json(json!({
                         "id":tbl_auth_role.id,
                         "name":tbl_auth_role.name,
-                        "apis":restful_apis_with_auth,
+                        "restful_apis":restful_apis,
                     })),
                 )
                     .into_response()
@@ -1065,7 +1020,7 @@ async fn user_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> 
                 };
                 let mut roles = Vec::new();
                 for tbl_auth_role in tbl_auth_roles {
-                    let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
+                    let (restful_apis, _len): (Vec<RestfulApi>, usize) =
                         match bincode::decode_from_slice(
                             &tbl_auth_role.apis[..],
                             bincode::config::standard(),
@@ -1076,26 +1031,11 @@ async fn user_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> 
                                 continue;
                             }
                         };
-                    let mut restful_apis_with_auth = Vec::new();
-                    for restful_api in RESTFUL_APIS.iter() {
-                        let mut is_owned = false;
-                        for owned_restful_api in &owned_restful_apis {
-                            if restful_api.method.eq(&owned_restful_api.method)
-                                && restful_api.path.eq(&owned_restful_api.path)
-                            {
-                                is_owned = true;
-                                continue;
-                            }
-                        }
-                        restful_apis_with_auth.push(RestfulApiWithAuth {
-                            restful_api: restful_api.clone(),
-                            is_owned,
-                        });
-                    }
+
                     let role = RoleQueryOutputDto {
                         id: tbl_auth_role.id,
                         name: tbl_auth_role.name,
-                        restful_apis: restful_apis_with_auth,
+                        restful_apis,
                     };
                     roles.push(role);
                 }
