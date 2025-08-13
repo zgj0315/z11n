@@ -589,22 +589,22 @@ async fn role_create(
 
 #[derive(Deserialize, Debug, Validate)]
 struct RoleUpdateInputDto {
-    id: i32,
     name: String,
     restful_apis: Vec<RestfulApi>,
 }
 async fn role_update(
+    Path(id): Path<i32>,
     app_state: State<AppState>,
     Json(update_input_dto): Json<RoleUpdateInputDto>,
 ) -> impl IntoResponse {
-    let tbl_auth_role = match tbl_auth_role::Entity::find_by_id(update_input_dto.id)
+    let tbl_auth_role = match tbl_auth_role::Entity::find_by_id(id)
         .one(&app_state.db_conn)
         .await
     {
         Ok(op) => match op {
             Some(v) => v,
             None => {
-                log::error!("tbl_auth_role {} not exist", update_input_dto.id);
+                log::error!("tbl_auth_role {} not exist", id);
                 return StatusCode::BAD_REQUEST.into_response();
             }
         },
