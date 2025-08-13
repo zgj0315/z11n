@@ -205,11 +205,11 @@ async fn user_create(
         .await
     {
         Ok(_) => {
-            return StatusCode::OK.into_response();
+            StatusCode::OK.into_response()
         }
         Err(e) => {
             log::error!("tbl_auth_user insert err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
