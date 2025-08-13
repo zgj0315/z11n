@@ -2,10 +2,10 @@ use std::{collections::HashSet, net::SocketAddr, ops::Deref};
 
 use axum::{
     Json, Router,
-    extract::{ConnectInfo, FromRequestParts, Path, Query, State},
+    extract::{ConnectInfo, FromRequestParts, Path, State},
     http::{Method, StatusCode, header, request::Parts},
     response::IntoResponse,
-    routing::{get, patch, post},
+    routing::post,
 };
 use bincode::{Decode, Encode};
 use chrono::Utc;
@@ -13,7 +13,7 @@ use entity::{tbl_auth_role, tbl_auth_user, tbl_auth_user_role};
 use once_cell::sync::Lazy;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, IntoActiveModel, PaginatorTrait,
-    QueryFilter, QueryOrder, QuerySelect,
+    QueryFilter, QuerySelect,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -21,7 +21,7 @@ use validator::Validate;
 
 use crate::AppState;
 
-static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
+pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
     let mut restful_apis = Vec::new();
     restful_apis.push(RestfulApi {
         method: "GET".to_string(),
@@ -89,6 +89,11 @@ static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
         name: "用户修改".to_string(),
     });
     restful_apis.push(RestfulApi {
+        method: "DELETE".to_string(),
+        path: "/api/users/".to_string(),
+        name: "用户删除".to_string(),
+    });
+    restful_apis.push(RestfulApi {
         method: "GET".to_string(),
         path: "/api/hosts".to_string(),
         name: "主机查询".to_string(),
@@ -130,19 +135,16 @@ static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
     });
     restful_apis
 });
-
+#[derive(Serialize, Deserialize, Encode, Decode, Debug, Clone)]
+pub struct RestfulApi {
+    method: String,
+    path: String,
+    name: String,
+}
 pub fn routers(state: AppState) -> Router {
     Router::new()
         .route("/login", post(login))
         .route("/logout/{token}", post(logout))
-        .route("/roles", get(role_query).post(role_create))
-        .route(
-            "/roles/{id}",
-            patch(role_update).get(role_detail).delete(role_delete),
-        )
-        .route("/users", get(user_query).post(user_create))
-        .route("/users/{id}", patch(user_update).get(user_detail))
-        .route("/restful_apis", get(restful_apis))
         .with_state(state)
 }
 #[derive(Deserialize, Debug, Validate)]
@@ -187,7 +189,7 @@ async fn login(
                             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
                         }
                     };
-                    let mut owend_restful_apis: Vec<RestfulApi> = Vec::new();
+                    let mut distinct_restful_apis: Vec<RestfulApi> = Vec::new();
                     for tbl_auth_role in tbl_auth_roles {
                         let (restful_apis, _len): (Vec<RestfulApi>, usize) =
                             match bincode::decode_from_slice(
@@ -202,7 +204,7 @@ async fn login(
                             };
                         for restful_api in restful_apis {
                             let mut is_exist = false;
-                            for owend_restful_api in &owend_restful_apis {
+                            for owend_restful_api in &distinct_restful_apis {
                                 if restful_api.method.eq(&owend_restful_api.method)
                                     && restful_api.path.eq(&owend_restful_api.path)
                                 {
@@ -211,7 +213,7 @@ async fn login(
                                 }
                             }
                             if !is_exist {
-                                owend_restful_apis.push(restful_api);
+                                distinct_restful_apis.push(restful_api);
                             }
                         }
                     }
@@ -219,7 +221,7 @@ async fn login(
 
                     let token_value = TokenValue {
                         expired_time: chrono::Utc::now().timestamp(),
-                        owend_restful_apis,
+                        restful_apis: distinct_restful_apis,
                     };
                     let encoded: Vec<u8> =
                         match bincode::encode_to_vec(&token_value, bincode::config::standard()) {
@@ -345,7 +347,7 @@ where
                                 };
                             // log::info!("{token_value:?}");
                             let mut is_auth = false;
-                            for restful_api in &token_value.owend_restful_apis {
+                            for restful_api in &token_value.restful_apis {
                                 // log::info!(
                                 //     "{} vs {}, {} vs {}",
                                 //     restful_api.method,
@@ -417,7 +419,7 @@ where
 #[derive(Serialize, Deserialize, Encode, Decode, Debug)]
 struct TokenValue {
     expired_time: i64,
-    owend_restful_apis: Vec<RestfulApi>,
+    restful_apis: Vec<RestfulApi>,
 }
 
 pub async fn token_expired_task(sled_db: sled::Db) -> anyhow::Result<()> {
@@ -452,432 +454,9 @@ pub async fn token_expired_task(sled_db: sled::Db) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Deserialize, Debug, Validate)]
-struct RoleQueryInputDto {
-    name: Option<String>,
-    size: u64,
-    page: u64,
-}
-
-#[derive(Serialize, Debug)]
-struct RoleQueryOutputDto {
-    id: i32,
-    name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
-}
-
-#[derive(Serialize, Deserialize, Encode, Decode, Debug)]
-struct RestfulApiWithAuth {
-    restful_api: RestfulApi,
-    is_owned: bool,
-}
-
-#[derive(Serialize, Deserialize, Encode, Decode, Debug, Clone)]
-struct RestfulApi {
-    method: String,
-    path: String,
-    name: String,
-}
-
-async fn role_query(
-    app_state: State<AppState>,
-    Query(query_input_dto): Query<RoleQueryInputDto>,
-) -> impl IntoResponse {
-    let mut select = tbl_auth_role::Entity::find();
-    if let Some(name) = query_input_dto.name {
-        if !name.is_empty() {
-            let like_pattern = format!("%{name}%");
-            select = select.filter(tbl_auth_role::Column::Name.like(like_pattern));
-        }
-    }
-
-    let paginator = select
-        .order_by_desc(tbl_auth_role::Column::Id)
-        .paginate(&app_state.db_conn, query_input_dto.size);
-    let num_pages = match paginator.num_pages().await {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("num_pages err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    };
-    let num_items = match paginator.num_items().await {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("num_items err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    };
-    let tbl_auth_roles = match paginator.fetch_page(query_input_dto.page).await {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("fetch_page err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    };
-    let mut roles = Vec::new();
-    for tbl_auth_role in tbl_auth_roles {
-        let encoded = tbl_auth_role.apis;
-        let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
-            match bincode::decode_from_slice(&encoded[..], bincode::config::standard()) {
-                Ok(v) => v,
-                Err(e) => {
-                    log::error!("bincode::decode_from_slice err: {}", e);
-                    continue;
-                }
-            };
-        let mut restful_apis_with_auth = Vec::new();
-        for restful_api in RESTFUL_APIS.iter() {
-            let mut is_owned = false;
-            for owned_restful_api in &owned_restful_apis {
-                if restful_api.method.eq(&owned_restful_api.method)
-                    && restful_api.path.eq(&owned_restful_api.path)
-                {
-                    is_owned = true;
-                    continue;
-                }
-            }
-            restful_apis_with_auth.push(RestfulApiWithAuth {
-                restful_api: restful_api.clone(),
-                is_owned,
-            });
-        }
-
-        roles.push(RoleQueryOutputDto {
-            id: tbl_auth_role.id,
-            name: tbl_auth_role.name,
-            restful_apis: restful_apis_with_auth,
-        });
-    }
-    (
-        StatusCode::OK,
-        Json(json!(
-            {
-            "page":{
-              "size":query_input_dto.size,
-              "total_elements":num_items,
-              "total_pages":num_pages
-            },
-            "_embedded":{
-                "role":roles
-            }
-           }
-        )),
-    )
-        .into_response()
-}
-
-#[derive(Deserialize, Debug, Validate)]
-struct RoleCreateInputDto {
-    name: String,
-    restful_apis: Vec<RestfulApi>,
-}
-async fn role_create(
-    app_state: State<AppState>,
-    Json(create_input_dto): Json<RoleCreateInputDto>,
-) -> impl IntoResponse {
-    let encoded: Vec<u8> =
-        match bincode::encode_to_vec(&create_input_dto.restful_apis, bincode::config::standard()) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("bincode::encode_to_vec err: {}", e);
-                return StatusCode::BAD_REQUEST.into_response();
-            }
-        };
-    let tbl_auth_role_am = tbl_auth_role::ActiveModel {
-        name: Set(create_input_dto.name),
-        apis: Set(encoded),
-        ..Default::default()
-    };
-    match tbl_auth_role::Entity::insert(tbl_auth_role_am)
-        .exec(&app_state.db_conn)
-        .await
-    {
-        Ok(_) => {
-            return StatusCode::OK.into_response();
-        }
-        Err(e) => {
-            log::error!("tbl_auth_role insert err: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-#[derive(Deserialize, Debug, Validate)]
-struct RoleUpdateInputDto {
-    id: i32,
-    name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
-}
-async fn role_update(
-    app_state: State<AppState>,
-    Json(update_input_dto): Json<RoleUpdateInputDto>,
-) -> impl IntoResponse {
-    let tbl_auth_role = match tbl_auth_role::Entity::find_by_id(update_input_dto.id)
-        .one(&app_state.db_conn)
-        .await
-    {
-        Ok(op) => match op {
-            Some(v) => v,
-            None => {
-                log::error!("tbl_auth_role {} not exist", update_input_dto.id);
-                return StatusCode::BAD_REQUEST.into_response();
-            }
-        },
-        Err(e) => {
-            log::error!("tbl_auth_role find by id err: {}", e);
-            return StatusCode::BAD_REQUEST.into_response();
-        }
-    };
-    let encoded: Vec<u8> =
-        match bincode::encode_to_vec(&update_input_dto.restful_apis, bincode::config::standard()) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("bincode::encode_to_vec err: {}", e);
-                return StatusCode::BAD_REQUEST.into_response();
-            }
-        };
-    let mut tbl_auth_role_am = tbl_auth_role.into_active_model();
-    tbl_auth_role_am.name = Set(update_input_dto.name);
-    tbl_auth_role_am.apis = Set(encoded);
-
-    match tbl_auth_role_am.save(&app_state.db_conn).await {
-        Ok(_) => {
-            return StatusCode::OK.into_response();
-        }
-        Err(e) => {
-            log::error!("tbl_auth_role save err: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-#[derive(Deserialize, Debug, Validate)]
-struct UserQueryInputDto {
-    username: Option<String>,
-    size: u64,
-    page: u64,
-}
-
-#[derive(Serialize, Debug)]
-struct UserQueryOutputDto {
-    id: i32,
-    username: String,
-    roles: Vec<RoleQueryOutputDto>,
-}
-
-async fn user_query(
-    app_state: State<AppState>,
-    Query(query_input_dto): Query<UserQueryInputDto>,
-) -> impl IntoResponse {
-    let mut select = tbl_auth_user::Entity::find();
-    if let Some(username) = query_input_dto.username {
-        if !username.is_empty() {
-            let like_pattern = format!("%{username}%");
-            select = select.filter(tbl_auth_user::Column::Username.like(like_pattern));
-        }
-    }
-
-    let paginator = select
-        .order_by_desc(tbl_auth_user::Column::Id)
-        .paginate(&app_state.db_conn, query_input_dto.size);
-    let num_pages = match paginator.num_pages().await {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("num_pages err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    };
-    let num_items = match paginator.num_items().await {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("num_items err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    };
-    let tbl_auth_users = match paginator.fetch_page(query_input_dto.page).await {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("fetch_page err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    };
-
-    let mut users = Vec::new();
-    for tbl_auth_user in tbl_auth_users {
-        let role_ids = match tbl_auth_user_role::Entity::find()
-            .select_only()
-            .column(tbl_auth_user_role::Column::RoleId)
-            .filter(tbl_auth_user_role::Column::UserId.eq(tbl_auth_user.id))
-            .into_tuple::<i32>()
-            .all(&app_state.db_conn)
-            .await
-        {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("tbl_auth_user_role find err: {}", e);
-                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-            }
-        };
-        let tbl_auth_roles = match tbl_auth_role::Entity::find()
-            .filter(tbl_auth_role::Column::Id.is_in(role_ids))
-            .all(&app_state.db_conn)
-            .await
-        {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("tbl_auth_role find err: {}", e);
-                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-            }
-        };
-        let mut roles = Vec::new();
-        for tbl_auth_role in tbl_auth_roles {
-            let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
-                match bincode::decode_from_slice(
-                    &tbl_auth_role.apis[..],
-                    bincode::config::standard(),
-                ) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("bincode::decode_from_slice err: {}", e);
-                        continue;
-                    }
-                };
-            let mut restful_apis_with_auth = Vec::new();
-            for restful_api in RESTFUL_APIS.iter() {
-                let mut is_owned = false;
-                for owned_restful_api in &owned_restful_apis {
-                    if restful_api.method.eq(&owned_restful_api.method)
-                        && restful_api.path.eq(&owned_restful_api.path)
-                    {
-                        is_owned = true;
-                        continue;
-                    }
-                }
-                restful_apis_with_auth.push(RestfulApiWithAuth {
-                    restful_api: restful_api.clone(),
-                    is_owned,
-                });
-            }
-            let role = RoleQueryOutputDto {
-                id: tbl_auth_role.id,
-                name: tbl_auth_role.name,
-                restful_apis: restful_apis_with_auth,
-            };
-            roles.push(role);
-        }
-        users.push(UserQueryOutputDto {
-            id: tbl_auth_user.id,
-            username: tbl_auth_user.username,
-            roles,
-        });
-    }
-    (
-        StatusCode::OK,
-        Json(json!(
-            {
-            "page":{
-              "size":query_input_dto.size,
-              "total_elements":num_items,
-              "total_pages":num_pages
-            },
-            "_embedded":{
-                "user":users
-            }
-           }
-        )),
-    )
-        .into_response()
-}
-
-#[derive(Deserialize, Debug, Validate)]
-struct UserCreateInputDto {
-    name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
-}
-async fn user_create(
-    app_state: State<AppState>,
-    Json(create_input_dto): Json<UserCreateInputDto>,
-) -> impl IntoResponse {
-    let encoded: Vec<u8> =
-        match bincode::encode_to_vec(&create_input_dto.restful_apis, bincode::config::standard()) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("bincode::encode_to_vec err: {}", e);
-                return StatusCode::BAD_REQUEST.into_response();
-            }
-        };
-    let tbl_auth_role_am = tbl_auth_role::ActiveModel {
-        name: Set(create_input_dto.name),
-        apis: Set(encoded),
-        ..Default::default()
-    };
-    match tbl_auth_role::Entity::insert(tbl_auth_role_am)
-        .exec(&app_state.db_conn)
-        .await
-    {
-        Ok(_) => {
-            return StatusCode::OK.into_response();
-        }
-        Err(e) => {
-            log::error!("tbl_auth_role insert err: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-#[derive(Deserialize, Debug, Validate)]
-struct UserUpdateInputDto {
-    id: i32,
-    name: String,
-    restful_apis: Vec<RestfulApiWithAuth>,
-}
-async fn user_update(
-    app_state: State<AppState>,
-    Json(update_input_dto): Json<UserUpdateInputDto>,
-) -> impl IntoResponse {
-    let tbl_auth_role = match tbl_auth_role::Entity::find_by_id(update_input_dto.id)
-        .one(&app_state.db_conn)
-        .await
-    {
-        Ok(op) => match op {
-            Some(v) => v,
-            None => {
-                log::error!("tbl_auth_role {} not exist", update_input_dto.id);
-                return StatusCode::BAD_REQUEST.into_response();
-            }
-        },
-        Err(e) => {
-            log::error!("tbl_auth_role find by id err: {}", e);
-            return StatusCode::BAD_REQUEST.into_response();
-        }
-    };
-    let encoded: Vec<u8> =
-        match bincode::encode_to_vec(&update_input_dto.restful_apis, bincode::config::standard()) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("bincode::encode_to_vec err: {}", e);
-                return StatusCode::BAD_REQUEST.into_response();
-            }
-        };
-    let mut tbl_auth_role_am = tbl_auth_role.into_active_model();
-    tbl_auth_role_am.name = Set(update_input_dto.name);
-    tbl_auth_role_am.apis = Set(encoded);
-
-    match tbl_auth_role_am.save(&app_state.db_conn).await {
-        Ok(_) => {
-            return StatusCode::OK.into_response();
-        }
-        Err(e) => {
-            log::error!("tbl_auth_role save err: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
 pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<()> {
     // 初始化角色
-    let super_role_name = "超级管理员";
+    let super_role_name = "超管角色";
     let super_admin_username = "sa";
     let encoded: Vec<u8> = bincode::encode_to_vec(&*RESTFUL_APIS, bincode::config::standard())?;
     let super_role_id = match tbl_auth_role::Entity::find()
@@ -941,180 +520,4 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
             .await?;
     }
     Ok(())
-}
-
-async fn role_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> impl IntoResponse {
-    match tbl_auth_role::Entity::find_by_id(id)
-        .one(&app_state.db_conn)
-        .await
-    {
-        Ok(tbl_agent_op) => match tbl_agent_op {
-            Some(tbl_auth_role) => {
-                let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
-                    match bincode::decode_from_slice(
-                        &tbl_auth_role.apis[..],
-                        bincode::config::standard(),
-                    ) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            log::error!("bincode::decode_from_slice err: {}", e);
-                            return StatusCode::BAD_REQUEST.into_response();
-                        }
-                    };
-                let mut restful_apis_with_auth = Vec::new();
-                for restful_api in RESTFUL_APIS.iter() {
-                    let mut is_owned = false;
-                    for api in &owned_restful_apis {
-                        if api.method.eq(&restful_api.method) && api.path.eq(&restful_api.path) {
-                            is_owned = true;
-                            break;
-                        }
-                    }
-                    restful_apis_with_auth.push(RestfulApiWithAuth {
-                        restful_api: restful_api.clone(),
-                        is_owned,
-                    });
-                }
-                (
-                    StatusCode::OK,
-                    Json(json!({
-                        "id":tbl_auth_role.id,
-                        "name":tbl_auth_role.name,
-                        "apis":restful_apis_with_auth,
-                    })),
-                )
-                    .into_response()
-            }
-            None => StatusCode::BAD_REQUEST.into_response(),
-        },
-        Err(e) => {
-            log::error!("find agent {} db err: {}", id, e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn role_delete(Path(id): Path<i32>, State(app_state): State<AppState>) -> impl IntoResponse {
-    match tbl_auth_role::Entity::delete_by_id(id)
-        .exec(&app_state.db_conn)
-        .await
-    {
-        Ok(delete_result) => {
-            if delete_result.rows_affected == 1 {
-                log::info!("tbl_auth_role {} delete success", id)
-            } else {
-                log::warn!(
-                    "tbl_auth_role {} delete success, but affect row: {}",
-                    id,
-                    delete_result.rows_affected
-                )
-            }
-            StatusCode::OK.into_response()
-        }
-        Err(e) => {
-            log::error!("find agent {} db err: {}", id, e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn restful_apis() -> impl IntoResponse {
-    let restful_apis = RESTFUL_APIS.clone();
-    match serde_json::to_value(&restful_apis) {
-        Ok(v) => {
-            return (StatusCode::OK, Json(v)).into_response();
-        }
-        Err(e) => {
-            log::error!("RESTFUL_APIS to value err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
-    }
-}
-
-async fn user_detail(Path(id): Path<i32>, State(app_state): State<AppState>) -> impl IntoResponse {
-    match tbl_auth_user::Entity::find_by_id(id)
-        .one(&app_state.db_conn)
-        .await
-    {
-        Ok(op) => match op {
-            Some(tbl_auth_user) => {
-                let role_ids = match tbl_auth_user_role::Entity::find()
-                    .select_only()
-                    .column(tbl_auth_user_role::Column::RoleId)
-                    .filter(tbl_auth_user_role::Column::UserId.eq(tbl_auth_user.id))
-                    .into_tuple::<i32>()
-                    .all(&app_state.db_conn)
-                    .await
-                {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("tbl_auth_user_role find err: {}", e);
-                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-                    }
-                };
-                let tbl_auth_roles = match tbl_auth_role::Entity::find()
-                    .filter(tbl_auth_role::Column::Id.is_in(role_ids))
-                    .all(&app_state.db_conn)
-                    .await
-                {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("tbl_auth_role find err: {}", e);
-                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-                    }
-                };
-                let mut roles = Vec::new();
-                for tbl_auth_role in tbl_auth_roles {
-                    let (owned_restful_apis, _len): (Vec<RestfulApi>, usize) =
-                        match bincode::decode_from_slice(
-                            &tbl_auth_role.apis[..],
-                            bincode::config::standard(),
-                        ) {
-                            Ok(v) => v,
-                            Err(e) => {
-                                log::error!("bincode::decode_from_slice err: {}", e);
-                                continue;
-                            }
-                        };
-                    let mut restful_apis_with_auth = Vec::new();
-                    for restful_api in RESTFUL_APIS.iter() {
-                        let mut is_owned = false;
-                        for owned_restful_api in &owned_restful_apis {
-                            if restful_api.method.eq(&owned_restful_api.method)
-                                && restful_api.path.eq(&owned_restful_api.path)
-                            {
-                                is_owned = true;
-                                continue;
-                            }
-                        }
-                        restful_apis_with_auth.push(RestfulApiWithAuth {
-                            restful_api: restful_api.clone(),
-                            is_owned,
-                        });
-                    }
-                    let role = RoleQueryOutputDto {
-                        id: tbl_auth_role.id,
-                        name: tbl_auth_role.name,
-                        restful_apis: restful_apis_with_auth,
-                    };
-                    roles.push(role);
-                }
-
-                (
-                    StatusCode::OK,
-                    Json(json!({
-                        "id":tbl_auth_user.id,
-                        "name":tbl_auth_user.username,
-                        "roles":roles,
-                    })),
-                )
-                    .into_response()
-            }
-            None => StatusCode::BAD_REQUEST.into_response(),
-        },
-        Err(e) => {
-            log::error!("find agent {} db err: {}", id, e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
 }

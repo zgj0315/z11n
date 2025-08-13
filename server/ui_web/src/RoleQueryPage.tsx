@@ -78,6 +78,12 @@ const App: React.FC = () => {
         <>
           <Button type="link" onClick={() => navigate(`/roles/${record.id}`)}>
             查看
+          </Button>{" "}
+          <Button
+            type="link"
+            onClick={() => navigate(`/roles/modify/${record.id}`)}
+          >
+            编辑
           </Button>
           {isLoggedIn && (
             <>
@@ -118,7 +124,9 @@ const App: React.FC = () => {
           <Button type="primary" htmlType="submit">
             查询
           </Button>
-          <Button type="link"><Link to="/roles/create">创建角色</Link></Button>
+          <Button type="link">
+            <Link to="/roles/create">创建角色</Link>
+          </Button>
         </Form.Item>
       </Form>
 

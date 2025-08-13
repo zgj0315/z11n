@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Descriptions, Spin, Transfer } from "antd";
-import type { DescriptionsProps, TransferProps } from "antd";
+import { Input, Spin, Transfer, message, Button } from "antd";
+import type { TransferProps } from "antd";
 import restful_api from "./RESTfulApi.tsx";
 
 interface ApiRecord {
   key: string;
   title: string;
   description: string;
+  method: string;
+  name: string;
+  path: string;
 }
 
 interface RestfulApi {
@@ -18,7 +21,7 @@ interface RestfulApi {
 
 const App: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [items, setItems] = useState<DescriptionsProps["items"]>([]);
+  // const [items, setItems] = useState<DescriptionsProps["items"]>([]);
   const [loading, setLoading] = useState(true);
 
   const [apiData, setApiData] = useState<ApiRecord[]>([]);
@@ -26,6 +29,7 @@ const App: React.FC = () => {
   const [selectedKeys, setSelectedKeys] = useState<TransferProps["targetKeys"]>(
     []
   );
+  const [roleName, setRoleName] = useState("");
   const onChange: TransferProps["onChange"] = (
     nextTargetKeys,
     direction,
@@ -49,7 +53,38 @@ const App: React.FC = () => {
     console.log("direction:", direction);
     console.log("target:", e.target);
   };
+  const handleSubmit = async () => {
+    if (!roleName.trim()) {
+      message.error("请输入角色名称");
+      return;
+    }
 
+    const selectedApis = apiData.filter((api) => targetKeys.includes(api.key));
+    if (selectedApis.length === 0) {
+      message.error("请选择至少一个 API");
+      return;
+    }
+
+    console.log("selectedApis: ", selectedApis);
+    const payload = {
+      name: roleName.trim(),
+      restful_apis: selectedApis.map(({ method, name, path }) => ({
+        method,
+        name,
+        path,
+      })),
+    };
+    console.log("payload: ", payload);
+
+    try {
+      await restful_api.patch(`/api/roles/${id}`, payload);
+      message.success("角色修改成功");
+      window.location.href = "/roles";
+    } catch (err) {
+      console.error("提交失败:", err);
+      message.error("提交失败，请稍后重试");
+    }
+  };
   useEffect(() => {
     restful_api
       .get(`/api/restful_apis`)
@@ -59,6 +94,9 @@ const App: React.FC = () => {
             key: `${restful_api.method}-${restful_api.path}`,
             title: `${restful_api.name}`,
             description: `${restful_api.method} ${restful_api.path}`,
+            method: restful_api.method,
+            name: restful_api.name,
+            path: restful_api.path,
           })
         );
         // console.log("transferData: ", transferData);
@@ -72,27 +110,10 @@ const App: React.FC = () => {
     restful_api
       .get(`/api/roles/${id}`)
       .then((res) => {
-        const data = res.data;
-        const baseItems: DescriptionsProps["items"] = [
-          {
-            key: "id",
-            label: "ID",
-            children: data.id,
-          },
-          {
-            key: "name",
-            label: "角色名称",
-            children: data.name,
-          },
-        ];
-        setItems(baseItems);
-        // console.log("baseItems: ", baseItems);
-        const ownedKeys = data.restful_apis
-          .map(
-            (restful_api: RestfulApi) =>
-              `${restful_api.method}-${restful_api.path}`
-          )
-          .filter((key: string | null) => key !== null) as string[];
+        setRoleName(res.data.name || "");
+        const ownedKeys = res.data.restful_apis.map(
+          (api: RestfulApi) => `${api.method}-${api.path}`
+        );
         // console.log("ownedKeys: ", ownedKeys);
         setTargetKeys(ownedKeys);
       })
@@ -108,12 +129,14 @@ const App: React.FC = () => {
     return <Spin tip="Loading..." />;
   }
 
-  if (!items) {
-    return <div>No data</div>;
-  }
   return (
     <>
-      <Descriptions title="Role Info" bordered items={items} />
+      <Input
+        placeholder="请输入角色名称"
+        value={roleName}
+        onChange={(e) => setRoleName(e.target.value)}
+        style={{ width: 300, marginBottom: 16 }}
+      />
       <Transfer
         dataSource={apiData}
         titles={["未授权的API", "已授权的API"]}
@@ -127,8 +150,10 @@ const App: React.FC = () => {
           width: 300,
           height: 400,
         }}
-        disabled={true}
       />
+      <Button type="primary" onClick={handleSubmit} style={{ marginTop: 16 }}>
+        保存修改
+      </Button>
     </>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import restful_api from "./RESTfulApi.tsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 type Agent = {
   id: string;
@@ -79,6 +79,12 @@ const App: React.FC = () => {
           <Button type="link" onClick={() => navigate(`/users/${record.id}`)}>
             查看
           </Button>
+          <Button
+            type="link"
+            onClick={() => navigate(`/users/modify/${record.id}`)}
+          >
+            编辑
+          </Button>
           {isLoggedIn && (
             <>
               <Popconfirm
@@ -117,6 +123,9 @@ const App: React.FC = () => {
         <Form.Item>
           <Button type="primary" htmlType="submit">
             查询
+          </Button>
+          <Button type="link">
+            <Link to="/users/create">创建用户</Link>
           </Button>
         </Form.Item>
       </Form>

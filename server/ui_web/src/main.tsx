@@ -10,9 +10,12 @@ import LlmTaskQueryPage from "./LlmTaskQueryPage.tsx";
 import LlmTaskDetailPage from "./LlmTaskDetailPage.tsx";
 import RoleQueryPage from "./RoleQueryPage.tsx";
 import RoleDetailPage from "./RoleDetailPage.tsx";
+import RoleModifyPage from "./RoleModifyPage.tsx";
 import RoleCreatePage from "./RoleCreatePage.tsx";
 import UserQueryPage from "./UserQueryPage.tsx";
 import UserDetailPage from "./UserDetailPage.tsx";
+import UserCreatePage from "./UserCreatePage.tsx";
+import UserModifyPage from "./UserModifyPage.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -28,8 +31,11 @@ createRoot(document.getElementById("root")!).render(
         <Route path="llm_tasks/:id" element={<LlmTaskDetailPage />} />
         <Route path="roles" element={<RoleQueryPage />} />
         <Route path="roles/create" element={<RoleCreatePage />} />
+        <Route path="roles/modify/:id" element={<RoleModifyPage />} />
         <Route path="roles/:id" element={<RoleDetailPage />} />
         <Route path="users" element={<UserQueryPage />} />
+        <Route path="users/create" element={<UserCreatePage />} />
+        <Route path="users/modify/:id" element={<UserModifyPage />} />
         <Route path="users/:id" element={<UserDetailPage />} />
       </Route>
     </Routes>

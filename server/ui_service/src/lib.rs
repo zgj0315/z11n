@@ -8,9 +8,12 @@ pub mod auth;
 pub mod config;
 pub mod host;
 pub mod llm_task;
+pub mod role;
 pub mod server;
 pub mod uds;
+pub mod user;
 pub mod z11n;
+
 #[derive(Clone)]
 pub struct AppState {
     pub db_conn: DatabaseConnection,
