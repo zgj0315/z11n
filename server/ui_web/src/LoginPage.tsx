@@ -4,6 +4,7 @@ import { Button, Form, Input, message, Row, Col } from "antd";
 import axios from "axios";
 import restful_api from "./utils/restful_api.ts";
 import { useNavigate } from "react-router-dom";
+import JSEncrypt from "jsencrypt";
 
 type FieldType = {
   username?: string;
@@ -15,13 +16,15 @@ const App: React.FC = () => {
   const navigate = useNavigate();
   const [captchaImg, setCaptchaImg] = useState<string>(""); // 存 base64 验证码图片
   const [captchaUuid, setCaptchaUuid] = useState<string>(""); // 存 uuid
+  const [publicKey, setPublicKey] = useState<string>("");
 
   const getCaptcha = async () => {
     try {
       const rsp = await restful_api.get("/api/captcha");
-      const { uuid, base64_captcha } = rsp.data;
+      const { uuid, base64_captcha, public_key } = rsp.data;
       setCaptchaUuid(uuid);
       setCaptchaImg(`data:image/png;base64,${base64_captcha}`);
+      setPublicKey(public_key);
     } catch (e) {
       console.error("获取验证码失败: ", e);
       message.error("获取验证码失败");
@@ -29,10 +32,21 @@ const App: React.FC = () => {
   };
 
   const onFinish: FormProps<FieldType>["onFinish"] = async (values) => {
+    if (!publicKey) {
+      message.error("公钥未加载，无法加密密码");
+      return;
+    }
+    const encryptor = new JSEncrypt();
+    encryptor.setPublicKey(publicKey);
+    const encryptedPassword = encryptor.encrypt(values.password || "");
+    if (!encryptedPassword) {
+      message.error("密码加密失败");
+      return;
+    }
     try {
       const response = await axios.post("/api/login", {
         username: values.username,
-        password: values.password,
+        password: encryptedPassword,
         uuid: captchaUuid, // 传验证码对应的uuid
         captcha: values.captcha, // 用户输入的验证码
       });

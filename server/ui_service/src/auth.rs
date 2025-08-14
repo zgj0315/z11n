@@ -7,12 +7,14 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
+use base64::{Engine, prelude::BASE64_STANDARD};
 use bincode::{Decode, Encode};
 use captcha::{Captcha, filters::Noise};
 use chrono::Utc;
 use entity::{tbl_auth_role, tbl_auth_user, tbl_auth_user_role};
 use moka::{notification::RemovalCause, sync::Cache};
 use once_cell::sync::Lazy;
+use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs1::EncodeRsaPublicKey};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QuerySelect,
@@ -156,19 +158,43 @@ async fn login(
     app_state: State<AppState>,
     Json(login_input_dto): Json<LoginInputDto>,
 ) -> impl IntoResponse {
-    match app_state.captcha_cache.get(&login_input_dto.uuid) {
+    let private_key = match app_state.captcha_cache.get(&login_input_dto.uuid) {
         Some(v) => {
-            if !login_input_dto.captcha.eq(&v) {
-                log::warn!("captcha not match {} vs {}", login_input_dto.captcha, v);
+            if !login_input_dto.captcha.eq(&v.captcha) {
+                log::warn!(
+                    "captcha not match {} vs {}",
+                    login_input_dto.captcha,
+                    v.captcha
+                );
                 return StatusCode::BAD_REQUEST.into_response();
             }
+            v.private_key
         }
         None => {
             log::warn!("uuid exist {}", login_input_dto.uuid);
             return StatusCode::BAD_REQUEST.into_response();
         }
-    }
-
+    };
+    let encrypted_bytes = match BASE64_STANDARD.decode(login_input_dto.password) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("BASE64_STANDARD.decode err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+    let password = match private_key.decrypt(Pkcs1v15Encrypt, &encrypted_bytes) {
+        Ok(v) => match String::from_utf8(v) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("String::from_utf8 err: {}", e);
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
+        },
+        Err(e) => {
+            log::error!("private_key.decrypt err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
     match tbl_auth_user::Entity::find()
         .filter(tbl_auth_user::Column::Username.eq(&login_input_dto.username))
         .one(&app_state.db_conn)
@@ -176,7 +202,7 @@ async fn login(
     {
         Ok(tbl_auth_user_op) => match tbl_auth_user_op {
             Some(tbl_auth_user) => {
-                if tbl_auth_user.password.eq(&login_input_dto.password) {
+                if tbl_auth_user.password.eq(&password) {
                     let role_ids = match tbl_auth_user_role::Entity::find()
                         .select_only()
                         .column(tbl_auth_user_role::Column::RoleId)
@@ -602,20 +628,20 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
     Ok(())
 }
 
-pub fn captcha_cache_init() -> anyhow::Result<Cache<String, String>> {
+pub fn captcha_cache_init() -> anyhow::Result<Cache<String, CaptchaEntry>> {
     let eviction_listener =
-        move |uuid: Arc<String>, captcha: String, removal_cause| match removal_cause {
+        move |uuid: Arc<String>, _captcha_entry: CaptchaEntry, removal_cause| match removal_cause {
             RemovalCause::Expired => {
-                log::info!("Expired: {uuid}-{captcha}");
+                log::info!("Expired: {uuid}");
             }
             RemovalCause::Explicit => {
-                log::info!("Explicit: {uuid}-{captcha}");
+                log::info!("Explicit: {uuid}");
             }
             RemovalCause::Replaced => {
-                log::info!("Replaced: {uuid}-{captcha}");
+                log::info!("Replaced: {uuid}");
             }
             RemovalCause::Size => {
-                log::info!("Size: {uuid}-{captcha}");
+                log::info!("Size: {uuid}");
             }
         };
     let cache = Cache::builder()
@@ -624,6 +650,12 @@ pub fn captcha_cache_init() -> anyhow::Result<Cache<String, String>> {
         .eviction_listener(eviction_listener)
         .build();
     Ok(cache)
+}
+
+#[derive(Clone)]
+pub struct CaptchaEntry {
+    captcha: String,
+    private_key: RsaPrivateKey,
 }
 
 async fn generate_captcha(app_state: State<AppState>) -> impl IntoResponse {
@@ -640,15 +672,28 @@ async fn generate_captcha(app_state: State<AppState>) -> impl IntoResponse {
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     };
+    let mut rng = rand::thread_rng(); // rand@0.8
+    let private_key = RsaPrivateKey::new(&mut rng, 2048).expect("failed to generate a key");
+    let public_key = RsaPublicKey::from(&private_key);
+    let public_key = match public_key.to_pkcs1_pem(Default::default()) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("public_key.to_pkcs1_pem err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
     let uuid = uuid::Uuid::new_v4().to_string();
-    app_state
-        .captcha_cache
-        .insert(uuid.clone(), rng_captcha.chars_as_string());
+    let captcha_entry = CaptchaEntry {
+        captcha: rng_captcha.chars_as_string(),
+        private_key,
+    };
+    app_state.captcha_cache.insert(uuid.clone(), captcha_entry);
     (
         StatusCode::OK,
         Json(json!({
             "uuid":uuid,
             "base64_captcha":base64_captcha,
+            "public_key":public_key
         })),
     )
         .into_response()
