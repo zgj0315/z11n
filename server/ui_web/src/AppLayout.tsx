@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { UserOutlined } from "@ant-design/icons";
 import { Layout, Menu, theme, Button, Breadcrumb } from "antd";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
@@ -6,68 +6,93 @@ import restful_api from "./RESTfulApi.tsx";
 import { hasPermission } from "./utils/permission";
 
 const { Header, Content, Footer, Sider } = Layout;
-
+// 菜单配置
+const menuConfig = [
+  {
+    key: "/agents",
+    icon: <UserOutlined />,
+    label: "Agent管理",
+    perm: ["GET", "/api/agents"],
+  },
+  {
+    key: "/hosts",
+    icon: <UserOutlined />,
+    label: "主机管理",
+    perm: ["GET", "/api/hosts"],
+  },
+  {
+    key: "/llm_tasks",
+    icon: <UserOutlined />,
+    label: "任务管理",
+    perm: ["GET", "/api/llm_tasks"],
+  },
+  {
+    key: "/roles",
+    icon: <UserOutlined />,
+    label: "角色管理",
+    perm: ["GET", "/api/roles"],
+  },
+  {
+    key: "/users",
+    icon: <UserOutlined />,
+    label: "用户管理",
+    perm: ["GET", "/api/users"],
+  },
+];
 const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
+  const [username, setUsername] = useState<string>("");
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  const menuItems = [
-    hasPermission("GET", "/api/agents") && {
-      key: "/agents",
-      icon: <UserOutlined />,
-      label: "Agent管理",
-    },
-    hasPermission("GET", "/api/hosts") && {
-      key: "/hosts",
-      icon: <UserOutlined />,
-      label: "主机管理",
-    },
-    hasPermission("GET", "/api/llm_tasks") && {
-      key: "/llm_tasks",
-      icon: <UserOutlined />,
-      label: "任务管理",
-    },
-    hasPermission("GET", "/api/roles") && {
-      key: "/roles",
-      icon: <UserOutlined />,
-      label: "角色管理",
-    },
-    hasPermission("GET", "/api/users") && {
-      key: "/users",
-      icon: <UserOutlined />,
-      label: "用户管理",
-    },
-  ];
+  const menuItems = useMemo(
+    () => menuConfig.filter((item) => hasPermission(...item.perm)),
+    []
+  );
+
+  const breadcrumbItems = useMemo(() => {
+    const paths = location.pathname.split("/").filter(Boolean);
+    return [
+      { title: "Home" },
+      ...paths.map((p) => ({ title: p.charAt(0).toUpperCase() + p.slice(1) })),
+    ];
+  }, [location.pathname]);
+
+  const handleLogout = async () => {
+    const token = localStorage.getItem("token");
+    localStorage.removeItem("token");
+    localStorage.removeItem("restful_apis");
+    navigate("/login", { replace: true });
+
+    if (token) {
+      try {
+        await restful_api.post(`/api/logout/${token}`, null, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (error) {
+        console.error("Logout failed", error);
+      }
+    }
+  };
+  useEffect(() => {
+    const username = localStorage.getItem("username");
+    if (username) setUsername(username);
+  }, []);
   return (
     <Layout>
       <Header style={{ display: "flex", alignItems: "center" }}>
         <div className="demo-logo" />
         {localStorage.getItem("token") && (
-          <Button
-            type="link"
-            onClick={async () => {
-              const token = localStorage.getItem("token");
-              if (token) {
-                try {
-                  await restful_api.post(`/api/logout/${token}`, null, {
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                    },
-                  });
-                } catch (error) {
-                  console.error("Logout failed", error);
-                }
-                localStorage.removeItem("token");
-                navigate("/login", { replace: true });
-              }
-            }}
-          >
-            Logout
-          </Button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontWeight: "bold", color: "#fff" }}>
+              {username}
+            </span>
+            <Button type="link" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
         )}
       </Header>
       <Layout>
@@ -76,17 +101,12 @@ const App: React.FC = () => {
             theme="dark"
             mode="inline"
             style={{ height: "100%", borderRight: 0 }}
-            defaultSelectedKeys={["4"]}
-            selectedKeys={[location.pathname]}
             onClick={({ key }) => navigate(key)}
             items={menuItems}
           />
         </Sider>
         <Layout style={{ padding: "0 24px 24px" }}>
-          <Breadcrumb
-            items={[{ title: "Home" }, { title: "Agent" }]}
-            style={{ margin: "16px 0" }}
-          />
+          <Breadcrumb items={breadcrumbItems} style={{ margin: "16px 0" }} />
           <Content
             style={{
               padding: 24,

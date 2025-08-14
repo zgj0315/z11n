@@ -463,7 +463,10 @@ pub async fn token_expired_task(sled_db: sled::Db) -> anyhow::Result<()> {
 pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<()> {
     // 初始化角色
     let super_role_name = "超管角色";
+    let read_only_role_name = "只读角色";
     let super_admin_username = "sa";
+    let guest_username = "guest";
+    // 超管角色
     let encoded: Vec<u8> = bincode::encode_to_vec(&*RESTFUL_APIS, bincode::config::standard())?;
     let super_role_id = match tbl_auth_role::Entity::find()
         .filter(tbl_auth_role::Column::Name.eq(super_role_name))
@@ -489,7 +492,39 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
             insert_result.last_insert_id
         }
     };
-
+    // 只读角色
+    let mut read_only_restful_apis = Vec::new();
+    for restful_api in RESTFUL_APIS.clone() {
+        if restful_api.method.eq("GET") {
+            read_only_restful_apis.push(restful_api);
+        }
+    }
+    let encoded: Vec<u8> =
+        bincode::encode_to_vec(read_only_restful_apis, bincode::config::standard())?;
+    let read_only_role_id = match tbl_auth_role::Entity::find()
+        .filter(tbl_auth_role::Column::Name.eq(read_only_role_name))
+        .one(&db_conn)
+        .await?
+    {
+        Some(tbl_auth_role) => {
+            let role_id = tbl_auth_role.id;
+            let mut tbl_auth_role_am = tbl_auth_role.into_active_model();
+            tbl_auth_role_am.apis = Set(encoded);
+            tbl_auth_role_am.save(&db_conn).await?;
+            role_id
+        }
+        None => {
+            let tbl_auth_role_am = tbl_auth_role::ActiveModel {
+                name: Set(read_only_role_name.to_string()),
+                apis: Set(encoded),
+                ..Default::default()
+            };
+            let insert_result = tbl_auth_role::Entity::insert(tbl_auth_role_am)
+                .exec(&db_conn)
+                .await?;
+            insert_result.last_insert_id
+        }
+    };
     // 初始化admin
     let super_admin_id = match tbl_auth_user::Entity::find()
         .filter(tbl_auth_user::Column::Username.eq(super_admin_username))
@@ -500,7 +535,26 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
         None => {
             let tbl_auth_user_am = tbl_auth_user::ActiveModel {
                 username: Set(super_admin_username.to_string()),
-                password: Set("123qwe!@#QWE".to_string()),
+                password: Set("sa".to_string()),
+                ..Default::default()
+            };
+            let insert_result = tbl_auth_user::Entity::insert(tbl_auth_user_am)
+                .exec(&db_conn)
+                .await?;
+            insert_result.last_insert_id
+        }
+    };
+    // 初始化guest
+    let guest_id = match tbl_auth_user::Entity::find()
+        .filter(tbl_auth_user::Column::Username.eq(guest_username))
+        .one(&db_conn)
+        .await?
+    {
+        Some(tbl_auth_user) => tbl_auth_user.id,
+        None => {
+            let tbl_auth_user_am = tbl_auth_user::ActiveModel {
+                username: Set(guest_username.to_string()),
+                password: Set("guest".to_string()),
                 ..Default::default()
             };
             let insert_result = tbl_auth_user::Entity::insert(tbl_auth_user_am)
@@ -520,6 +574,20 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
         let tbl_auth_user_role_am = tbl_auth_user_role::ActiveModel {
             user_id: Set(super_admin_id),
             role_id: Set(super_role_id),
+        };
+        tbl_auth_user_role::Entity::insert(tbl_auth_user_role_am)
+            .exec(&db_conn)
+            .await?;
+    }
+    let count = tbl_auth_user_role::Entity::find()
+        .filter(tbl_auth_user_role::Column::UserId.eq(guest_id))
+        .filter(tbl_auth_user_role::Column::RoleId.eq(read_only_role_id))
+        .count(&db_conn)
+        .await?;
+    if count < 1 {
+        let tbl_auth_user_role_am = tbl_auth_user_role::ActiveModel {
+            user_id: Set(guest_id),
+            role_id: Set(read_only_role_id),
         };
         tbl_auth_user_role::Entity::insert(tbl_auth_user_role_am)
             .exec(&db_conn)

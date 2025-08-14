@@ -137,9 +137,11 @@ const App: React.FC = () => {
           <Button type="primary" htmlType="submit">
             查询
           </Button>
-          <Button type="link">
-            <Link to="/users/create">创建用户</Link>
-          </Button>
+          {hasPermission("POST", "/api/users") && (
+            <Button type="link">
+              <Link to="/users/create">创建用户</Link>
+            </Button>
+          )}
         </Form.Item>
       </Form>
 

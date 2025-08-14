@@ -20,7 +20,7 @@ const App: React.FC = () => {
         username: values.username,
         password: values.password,
       });
-
+      localStorage.setItem("username", String(values.username));
       const { token } = response.data;
       console.log("token: ", token);
       localStorage.setItem("token", token);
