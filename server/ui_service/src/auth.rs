@@ -221,7 +221,7 @@ async fn login(
 
                     let token_value = TokenValue {
                         expired_time: chrono::Utc::now().timestamp(),
-                        restful_apis: distinct_restful_apis,
+                        restful_apis: distinct_restful_apis.clone(),
                     };
                     let encoded: Vec<u8> =
                         match bincode::encode_to_vec(&token_value, bincode::config::standard()) {
@@ -237,7 +237,8 @@ async fn login(
                     (
                         StatusCode::OK,
                         Json(json!({
-                            "token": token
+                            "token": token,
+                            "restful_apis":distinct_restful_apis,
                         })),
                     )
                         .into_response()

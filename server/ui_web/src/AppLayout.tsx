@@ -74,7 +74,7 @@ const App: React.FC = () => {
                   console.error("Logout failed", error);
                 }
                 localStorage.removeItem("token");
-                window.location.reload();
+                navigate("/login", { replace: true });
               }
             }}
           >
