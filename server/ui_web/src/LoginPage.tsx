@@ -14,7 +14,7 @@ const App: React.FC = () => {
   const navigate = useNavigate();
 
   const onFinish: FormProps<FieldType>["onFinish"] = async (values) => {
-    console.log("Success:", values);
+    // console.log("Success:", values);
     try {
       const response = await axios.post("/api/login", {
         username: values.username,
@@ -22,10 +22,10 @@ const App: React.FC = () => {
       });
       localStorage.setItem("username", String(values.username));
       const { token } = response.data;
-      console.log("token: ", token);
+      // console.log("token: ", token);
       localStorage.setItem("token", token);
       const { restful_apis } = response.data;
-      console.log("restful_apis: ", restful_apis);
+      // console.log("restful_apis: ", restful_apis);
       localStorage.setItem("restful_apis", JSON.stringify(restful_apis));
       message.success("Login successful!");
       navigate("/");

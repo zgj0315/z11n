@@ -28,8 +28,6 @@ const App: React.FC = () => {
     size = page_size,
     filters?: { title?: string; content?: string }
   ) => {
-    console.log("handleQuery page: ", page);
-    console.log("handleQuery size: ", size);
     const params = new URLSearchParams();
     params.append("size", size.toString());
     params.append("page", (page - 1).toString());
