@@ -47,7 +47,7 @@ const App: React.FC = () => {
     } catch (e) {
       console.error("查询失败: ", e);
       message.error("查询失败");
-      window.location.href = "/login";
+      navigate("/login");
     } finally {
       setLoading(false);
     }

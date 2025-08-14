@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Form, Input, Button, Checkbox, message, Spin } from "antd";
+import { useNavigate } from "react-router-dom";
 import restful_api from "./RESTfulApi.tsx";
 
 interface Role {
@@ -7,52 +8,56 @@ interface Role {
   name: string;
 }
 
+interface UserFormValues {
+  username: string;
+  password: string;
+  role_ids: number[];
+}
+
 const UserCreate: React.FC = () => {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<UserFormValues>();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // 获取角色列表
-    restful_api
-      .get("/api/roles?size=1000&page=0")
-      .then((res) => {
-        setRoles(res.data._embedded.role);
-      })
-      .catch((err) => {
+    const fetchRoles = async () => {
+      try {
+        const res = await restful_api.get("/api/roles?size=1000&page=0");
+        setRoles(res.data._embedded?.role || []);
+      } catch (err) {
         console.error("Failed to fetch roles:", err);
         message.error("获取角色列表失败");
-      })
-      .finally(() => {
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchRoles();
   }, []);
 
-  const onFinish = (values: unknown) => {
+  const onFinish = async (values: UserFormValues) => {
     setSubmitting(true);
-    restful_api
-      .post("/api/users", {
-        username: values.username,
-        password: values.password,
-        role_ids: values.role_ids || [],
-      })
-      .then(() => {
-        message.success("用户创建成功");
-        form.resetFields();
-      })
-      .catch((err) => {
-        console.error("Failed to create user:", err);
-        message.error("用户创建失败");
-      })
-      .finally(() => {
-        setSubmitting(false);
-      });
-    window.location.href = "/users";
+    try {
+      await restful_api.post("/api/users", values);
+      message.success("用户创建成功");
+      form.resetFields();
+      navigate("/users");
+    } catch (err) {
+      console.error("Failed to create user:", err);
+      message.error("用户创建失败");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
-    return <Spin tip="加载中..." />;
+    return (
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 50 }}>
+        <Spin tip="加载中..." />
+      </div>
+    );
   }
 
   return (
