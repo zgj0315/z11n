@@ -1,92 +1,106 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Button, Form, Input, message, Table, Popconfirm } from "antd";
-import restful_api from "./RESTfulApi.tsx";
 import { useNavigate, Link } from "react-router-dom";
+import restful_api from "./RESTfulApi.tsx";
+import { hasPermission } from "./utils/permission";
 
-type Agent = {
-  id: string;
-};
+interface User {
+  id: number;
+  username: string;
+}
 
-type Page = {
-  size: number;
-  total_elements: number;
-  total_pages: number;
-};
+interface PaginationState {
+  current: number;
+  pageSize: number;
+  total: number;
+}
 
 const App: React.FC = () => {
   const navigate = useNavigate();
-  const [users, setUsers] = useState<[]>([]);
-  const [current, setCurrent] = useState(1);
-  const [page_size, setPageSize] = useState(5);
-  const [page, setPage] = useState<Page>();
+  const [users, setUsers] = useState<User[]>([]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    current: 1,
+    pageSize: 5,
+    total: 0,
+  });
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
-  const handleQuery = async (
-    page = current,
-    size = page_size,
-    filters?: { username?: string }
-  ) => {
-    console.log("handleQuery page: ", page);
-    console.log("handleQuery size: ", size);
-    const params = new URLSearchParams();
-    params.append("size", size.toString());
-    params.append("page", (page - 1).toString());
-    if (filters?.username) params.append("username", filters.username);
-    setLoading(true);
-    try {
-      const response = await restful_api.get(`/api/users?${params.toString()}`);
-      setUsers(response.data._embedded?.user);
-      setPage(response.data.page);
-      setCurrent(page);
-      setPageSize(size);
-      message.success("查询成功");
-    } catch (e) {
-      console.error("查询失败: ", e);
-      message.error("查询失败");
-      window.location.href = "/login";
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchUsers = useCallback(
+    async (
+      page: number = pagination.current,
+      size: number = pagination.pageSize,
+      filters?: { username?: string }
+    ) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          size: size.toString(),
+          page: (page - 1).toString(),
+          ...(filters?.username ? { username: filters.username } : {}),
+        });
 
-  const handleDelete = async (id: string) => {
-    try {
-      await restful_api.delete(`/api/users/${id}`);
-      message.success("删除成功");
-      handleQuery();
-    } catch (error) {
-      console.error("删除失败:", error);
-      message.error("删除失败");
-    }
-  };
-  const columns = [
-    {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
+        const { data } = await restful_api.get(
+          `/api/users?${params.toString()}`
+        );
+        setUsers(data._embedded?.user || []);
+        setPagination({
+          current: page,
+          pageSize: size,
+          total: data.page?.total_elements || 0,
+        });
+      } catch (error) {
+        console.error("查询失败:", error);
+        message.error("查询失败");
+        // if (!localStorage.getItem("token")) {
+        navigate("/login");
+        // }
+      } finally {
+        setLoading(false);
+      }
     },
-    {
-      title: "用户名",
-      dataIndex: "username",
-      key: "username",
+    [pagination.current, pagination.pageSize, navigate]
+  );
+
+  const handleDelete = useCallback(
+    async (id: number) => {
+      try {
+        await restful_api.delete(`/api/users/${id}`);
+        message.success("删除成功");
+        fetchUsers(); // 保持当前页
+      } catch (error) {
+        console.error("删除失败:", error);
+        message.error("删除失败");
+      }
     },
-    {
-      title: "操作",
-      key: "action",
-      render: (_: unknown, record: Agent) => (
-        <>
-          <Button type="link" onClick={() => navigate(`/users/${record.id}`)}>
-            查看
-          </Button>
-          <Button
-            type="link"
-            onClick={() => navigate(`/users/modify/${record.id}`)}
-          >
-            编辑
-          </Button>
-          {isLoggedIn && (
-            <>
+    [fetchUsers]
+  );
+
+  const columns = useMemo(
+    () => [
+      { title: "ID", dataIndex: "id", key: "id" },
+      { title: "用户名", dataIndex: "username", key: "username" },
+      {
+        title: "操作",
+        key: "action",
+        render: (_: unknown, record: User) => (
+          <>
+            {hasPermission("GET", "/api/users") && (
+              <Button
+                type="link"
+                onClick={() => navigate(`/users/${record.id}`)}
+              >
+                查看
+              </Button>
+            )}
+            {hasPermission("PATCH", "/api/users/") && (
+              <Button
+                type="link"
+                onClick={() => navigate(`/users/modify/${record.id}`)}
+              >
+                编辑
+              </Button>
+            )}
+            {hasPermission("DELETE", "/api/users/") && (
               <Popconfirm
                 title="确定要删除这条记录吗？"
                 onConfirm={() => handleDelete(record.id)}
@@ -97,28 +111,27 @@ const App: React.FC = () => {
                   删除
                 </Button>
               </Popconfirm>
-            </>
-          )}
-        </>
-      ),
-    },
-  ];
+            )}
+          </>
+        ),
+      },
+    ],
+    [navigate, handleDelete]
+  );
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsLoggedIn(!!token);
-    handleQuery();
-  }, []);
+    fetchUsers();
+  }, [fetchUsers]);
 
   return (
     <>
       <Form
         layout="inline"
-        onFinish={(values) => handleQuery(1, page_size, values)}
+        onFinish={(values) => fetchUsers(1, pagination.pageSize, values)}
         style={{ marginTop: 16 }}
       >
         <Form.Item name="username" label="用户名">
-          <Input placeholder="请输入用户名关键字" />
+          <Input placeholder="请输入用户名关键字" allowClear />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit">
@@ -136,10 +149,10 @@ const App: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={{
-          current: current,
-          pageSize: page_size,
-          total: page?.total_elements,
-          onChange: (page, size) => handleQuery(page, size),
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          onChange: (page, size) => fetchUsers(page, size),
         }}
         style={{ marginTop: 24 }}
       />

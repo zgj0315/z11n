@@ -3,6 +3,7 @@ import { UserOutlined } from "@ant-design/icons";
 import { Layout, Menu, theme, Button, Breadcrumb } from "antd";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import restful_api from "./RESTfulApi.tsx";
+import { hasPermission } from "./utils/permission";
 
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -15,45 +16,32 @@ const App: React.FC = () => {
   } = theme.useToken();
 
   const menuItems = [
-    {
+    hasPermission("GET", "/api/agents") && {
       key: "/agents",
       icon: <UserOutlined />,
       label: "Agent管理",
     },
-    {
+    hasPermission("GET", "/api/hosts") && {
       key: "/hosts",
       icon: <UserOutlined />,
       label: "主机管理",
     },
-    {
+    hasPermission("GET", "/api/llm_tasks") && {
       key: "/llm_tasks",
       icon: <UserOutlined />,
       label: "任务管理",
     },
-    {
+    hasPermission("GET", "/api/roles") && {
       key: "/roles",
       icon: <UserOutlined />,
       label: "角色管理",
     },
-    {
+    hasPermission("GET", "/api/users") && {
       key: "/users",
       icon: <UserOutlined />,
       label: "用户管理",
     },
   ];
-  const isLoggedIn = !!localStorage.getItem("token");
-  if (isLoggedIn) {
-    // menuItems.push({
-    //   key: "/pdf_article_access_logs",
-    //   icon: <VideoCameraOutlined />,
-    //   label: "浏览记录",
-    // });
-    // menuItems.push({
-    //   key: "/logs",
-    //   icon: <VideoCameraOutlined />,
-    //   label: "操作日志",
-    // });
-  }
   return (
     <Layout>
       <Header style={{ display: "flex", alignItems: "center" }}>
@@ -74,7 +62,7 @@ const App: React.FC = () => {
                   console.error("Logout failed", error);
                 }
                 localStorage.removeItem("token");
-                window.location.reload();
+                navigate("/login", { replace: true });
               }
             }}
           >

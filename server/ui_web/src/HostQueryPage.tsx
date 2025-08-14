@@ -3,6 +3,7 @@ import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import restful_api from "./RESTfulApi.tsx";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
+import { hasPermission } from "./utils/permission";
 
 type Host = {
   agent_id: string;
@@ -21,7 +22,6 @@ const App: React.FC = () => {
   const [page_size, setPageSize] = useState(5);
   const [page, setPage] = useState<Page>();
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   const handleQuery = async (
     page = current,
@@ -72,11 +72,6 @@ const App: React.FC = () => {
     }
   };
   const columns = [
-    // {
-    //   title: "AgentId",
-    //   dataIndex: "agent_id",
-    //   key: "agent_id",
-    // },
     {
       title: "主机名",
       dataIndex: "host_name",
@@ -116,23 +111,27 @@ const App: React.FC = () => {
       key: "action",
       render: (_: unknown, record: Host) => (
         <>
-          <Button
-            type="link"
-            onClick={() => navigate(`/hosts/${record.agent_id}`)}
-          >
-            查看
-          </Button>
-          <Popconfirm
-            title="确定要更新这条记录吗？"
-            onConfirm={() => handleUpload(record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button danger type="link">
-              更新
+          {hasPermission("GET", "/api/hosts/") && (
+            <Button
+              type="link"
+              onClick={() => navigate(`/hosts/${record.agent_id}`)}
+            >
+              查看
             </Button>
-          </Popconfirm>
-          {isLoggedIn && (
+          )}
+          {hasPermission("POST", "/api/hosts") && (
+            <Popconfirm
+              title="确定要更新这条记录吗？"
+              onConfirm={() => handleUpload(record)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button danger type="link">
+                更新
+              </Button>
+            </Popconfirm>
+          )}
+          {hasPermission("DELETE", "/api/agents/") && (
             <>
               <Popconfirm
                 title="确定要删除这条记录吗？"
@@ -152,8 +151,6 @@ const App: React.FC = () => {
   ];
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsLoggedIn(!!token);
     handleQuery();
   }, []);
 

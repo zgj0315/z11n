@@ -2,17 +2,19 @@ import React, { useState, useEffect } from "react";
 import { Transfer, message, Input, Button } from "antd";
 import type { TransferProps } from "antd";
 import restful_api from "./RESTfulApi.tsx";
+import { useNavigate } from "react-router-dom";
 
 interface ApiRecord {
   key: string;
   title: string;
   description: string;
-  method: string,
-  name: string,
-  path: string,
+  method: string;
+  name: string;
+  path: string;
 }
 
 const App: React.FC = () => {
+  const navigate = useNavigate();
   const [apiData, setApiData] = useState<ApiRecord[]>([]);
   const [targetKeys, setTargetKeys] = useState<string[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -22,7 +24,10 @@ const App: React.FC = () => {
     setTargetKeys(nextTargetKeys);
   };
 
-  const onSelectChange = (sourceSelectedKeys: string[], targetSelectedKeys: string[]) => {
+  const onSelectChange = (
+    sourceSelectedKeys: string[],
+    targetSelectedKeys: string[]
+  ) => {
     setSelectedKeys([...sourceSelectedKeys, ...targetSelectedKeys]);
   };
   const onScroll: TransferProps["onScroll"] = (direction, e) => {
@@ -67,7 +72,7 @@ const App: React.FC = () => {
       setRoleName("");
       setTargetKeys([]);
       setSelectedKeys([]);
-      window.location.href = "/roles";
+      navigate("/roles");
     } catch (err) {
       console.error("提交失败:", err);
       message.error("提交失败，请稍后重试");
@@ -92,9 +97,7 @@ const App: React.FC = () => {
         console.error("Failed to fetch system info:", err);
         message.error("加载 API 列表失败");
       })
-      .finally(() => {
-
-      });
+      .finally(() => {});
   }, []);
 
   return (

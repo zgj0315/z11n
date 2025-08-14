@@ -2,12 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import restful_api from "./RESTfulApi.tsx";
 import { useNavigate, Link } from "react-router-dom";
-
-type RestfulApi = {
-  method: string;
-  name: string;
-  path: string;
-};
+import { hasPermission } from "./utils/permission";
+import type { RestfulApi } from "./types/restfulApi";
 
 type Role = {
   id: number;
@@ -90,16 +86,20 @@ const App: React.FC = () => {
       key: "action",
       render: (_: unknown, record: Role) => (
         <>
-          <Button type="link" onClick={() => navigate(`/roles/${record.id}`)}>
-            查看
-          </Button>{" "}
-          <Button
-            type="link"
-            onClick={() => navigate(`/roles/modify/${record.id}`)}
-          >
-            编辑
-          </Button>
-          {isLoggedIn && (
+          {hasPermission("GET", "/api/roles/") && (
+            <Button type="link" onClick={() => navigate(`/roles/${record.id}`)}>
+              查看
+            </Button>
+          )}
+          {hasPermission("PATCH", "/api/roles/") && (
+            <Button
+              type="link"
+              onClick={() => navigate(`/roles/modify/${record.id}`)}
+            >
+              编辑
+            </Button>
+          )}
+          {hasPermission("DELETE", "/api/roles/") && (
             <>
               <Popconfirm
                 title="确定要删除这条记录吗？"
@@ -140,9 +140,11 @@ const App: React.FC = () => {
           <Button type="primary" htmlType="submit">
             查询
           </Button>
-          <Button type="link">
-            <Link to="/roles/create">创建角色</Link>
-          </Button>
+          {hasPermission("POST", "/api/roles") && (
+            <Button type="link">
+              <Link to="/roles/create">创建角色</Link>
+            </Button>
+          )}
         </Form.Item>
       </Form>
 
