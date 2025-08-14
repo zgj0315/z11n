@@ -3,28 +3,10 @@ import { UserOutlined } from "@ant-design/icons";
 import { Layout, Menu, theme, Button, Breadcrumb } from "antd";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import restful_api from "./RESTfulApi.tsx";
+import { hasPermission } from "./utils/permission";
 
 const { Header, Content, Footer, Sider } = Layout;
-interface RestfulApi {
-  method: string;
-  path: string;
-  name: string;
-}
 
-function hasPermission(method: string, path: string) {
-  try {
-    const restful_apis = JSON.parse(
-      localStorage.getItem("restful_apis") || "[]"
-    );
-    return restful_apis.some(
-      (restful_api: RestfulApi) =>
-        restful_api.method.toUpperCase() === method.toUpperCase() &&
-        restful_api.path === path
-    );
-  } catch {
-    return false;
-  }
-}
 const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();

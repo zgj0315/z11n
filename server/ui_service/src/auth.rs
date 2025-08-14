@@ -59,6 +59,11 @@ pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
             name: "角色新增".to_string(),
         },
         RestfulApi {
+            method: "GET".to_string(),
+            path: "/api/roles/".to_string(),
+            name: "角色详情".to_string(),
+        },
+        RestfulApi {
             method: "PATCH".to_string(),
             path: "/api/roles/".to_string(),
             name: "角色修改".to_string(),
@@ -66,7 +71,7 @@ pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
         RestfulApi {
             method: "DELETE".to_string(),
             path: "/api/roles/".to_string(),
-            name: "角色修改".to_string(),
+            name: "角色删除".to_string(),
         },
         RestfulApi {
             method: "GET".to_string(),

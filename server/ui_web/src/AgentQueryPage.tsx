@@ -3,6 +3,7 @@ import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import restful_api from "./RESTfulApi.tsx";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
+import { hasPermission } from "./utils/permission";
 
 type Agent = {
   id: string;
@@ -21,7 +22,6 @@ const App: React.FC = () => {
   const [page_size, setPageSize] = useState(5);
   const [page, setPage] = useState<Page>();
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   const handleQuery = async (
     page = current,
@@ -98,10 +98,15 @@ const App: React.FC = () => {
       key: "action",
       render: (_: unknown, record: Agent) => (
         <>
-          <Button type="link" onClick={() => navigate(`/agents/${record.id}`)}>
-            查看
-          </Button>
-          {isLoggedIn && (
+          {hasPermission("GET", "/api/agents/") && (
+            <Button
+              type="link"
+              onClick={() => navigate(`/agents/${record.id}`)}
+            >
+              查看
+            </Button>
+          )}
+          {hasPermission("DELETE", "/api/agents/") && (
             <>
               <Popconfirm
                 title="确定要删除这条记录吗？"
@@ -121,8 +126,6 @@ const App: React.FC = () => {
   ];
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsLoggedIn(!!token);
     handleQuery();
   }, []);
 

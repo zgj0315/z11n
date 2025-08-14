@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import { useNavigate, Link } from "react-router-dom";
 import restful_api from "./RESTfulApi.tsx";
+import { hasPermission } from "./utils/permission";
 
 interface User {
   id: number;
@@ -23,7 +24,6 @@ const App: React.FC = () => {
     total: 0,
   });
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const fetchUsers = useCallback(
     async (
@@ -84,16 +84,23 @@ const App: React.FC = () => {
         key: "action",
         render: (_: unknown, record: User) => (
           <>
-            <Button type="link" onClick={() => navigate(`/users/${record.id}`)}>
-              查看
-            </Button>
-            <Button
-              type="link"
-              onClick={() => navigate(`/users/modify/${record.id}`)}
-            >
-              编辑
-            </Button>
-            {isLoggedIn && (
+            {hasPermission("GET", "/api/users") && (
+              <Button
+                type="link"
+                onClick={() => navigate(`/users/${record.id}`)}
+              >
+                查看
+              </Button>
+            )}
+            {hasPermission("PATCH", "/api/users/") && (
+              <Button
+                type="link"
+                onClick={() => navigate(`/users/modify/${record.id}`)}
+              >
+                编辑
+              </Button>
+            )}
+            {hasPermission("DELETE", "/api/users/") && (
               <Popconfirm
                 title="确定要删除这条记录吗？"
                 onConfirm={() => handleDelete(record.id)}
@@ -109,11 +116,10 @@ const App: React.FC = () => {
         ),
       },
     ],
-    [isLoggedIn, navigate, handleDelete]
+    [navigate, handleDelete]
   );
 
   useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem("token"));
     fetchUsers();
   }, [fetchUsers]);
 
