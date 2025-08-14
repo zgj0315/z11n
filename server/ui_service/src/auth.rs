@@ -1,15 +1,17 @@
-use std::{collections::HashSet, net::SocketAddr, ops::Deref};
+use std::{collections::HashSet, net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
 
 use axum::{
     Json, Router,
     extract::{ConnectInfo, FromRequestParts, Path, State},
     http::{Method, StatusCode, header, request::Parts},
     response::IntoResponse,
-    routing::post,
+    routing::{get, post},
 };
 use bincode::{Decode, Encode};
+use captcha::{Captcha, filters::Noise};
 use chrono::Utc;
 use entity::{tbl_auth_role, tbl_auth_user, tbl_auth_user_role};
+use moka::{notification::RemovalCause, sync::Cache};
 use once_cell::sync::Lazy;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, IntoActiveModel, PaginatorTrait,
@@ -37,16 +39,6 @@ pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
             method: "DELETE".to_string(),
             path: "/api/agents/".to_string(),
             name: "Agent删除".to_string(),
-        },
-        RestfulApi {
-            method: "POST".to_string(),
-            path: "/api/login".to_string(),
-            name: "登录".to_string(),
-        },
-        RestfulApi {
-            method: "POST".to_string(),
-            path: "/api/logout".to_string(),
-            name: "退出".to_string(),
         },
         RestfulApi {
             method: "GET".to_string(),
@@ -150,6 +142,7 @@ pub fn routers(state: AppState) -> Router {
     Router::new()
         .route("/login", post(login))
         .route("/logout/{token}", post(logout))
+        .route("/captcha", get(generate_captcha))
         .with_state(state)
 }
 #[derive(Deserialize, Debug, Validate)]
@@ -283,10 +276,8 @@ async fn logout(Path(token): Path<String>, app_state: State<AppState>) -> impl I
 static WHITE_API_SET: Lazy<HashSet<(Method, &'static str)>> = Lazy::new(|| {
     HashSet::from([
         (Method::POST, "/api/login"),
-        // (Method::GET, "/api/agents"),
-        // (Method::GET, "/api/hosts"),
-        // (Method::POST, "/api/hosts"),
-        // (Method::GET, "/api/llm_tasks"),
+        (Method::POST, "/api/logout"),
+        (Method::GET, "/api/captcha"),
     ])
 });
 pub struct RequireAuth;
@@ -594,4 +585,56 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
             .await?;
     }
     Ok(())
+}
+
+pub fn captcha_cache_init() -> anyhow::Result<Cache<String, String>> {
+    let eviction_listener =
+        move |uuid: Arc<String>, captcha: String, removal_cause| match removal_cause {
+            RemovalCause::Expired => {
+                log::info!("Expired: {uuid}-{captcha}");
+            }
+            RemovalCause::Explicit => {
+                log::info!("Explicit: {uuid}-{captcha}");
+            }
+            RemovalCause::Replaced => {
+                log::info!("Replaced: {uuid}-{captcha}");
+            }
+            RemovalCause::Size => {
+                log::info!("Size: {uuid}-{captcha}");
+            }
+        };
+    let cache = Cache::builder()
+        .max_capacity(50_000)
+        .time_to_live(Duration::from_secs(60 * 10))
+        .eviction_listener(eviction_listener)
+        .build();
+    Ok(cache)
+}
+
+async fn generate_captcha(app_state: State<AppState>) -> impl IntoResponse {
+    let mut rng_captcha = Captcha::new();
+    rng_captcha
+        .set_chars(&['1', '2', '3', '4', '5', '6', '7', '8', '9'])
+        .add_chars(5)
+        .apply_filter(Noise::new(0.3))
+        .view(200, 80);
+
+    let base64_captcha = match rng_captcha.as_base64() {
+        Some(v) => v,
+        None => {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+    let uuid = uuid::Uuid::new_v4().to_string();
+    app_state
+        .captcha_cache
+        .insert(uuid.clone(), rng_captcha.chars_as_string());
+    (
+        StatusCode::OK,
+        Json(json!({
+            "uuid":uuid,
+            "base64_captcha":base64_captcha,
+        })),
+    )
+        .into_response()
 }
