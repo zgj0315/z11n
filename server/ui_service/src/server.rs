@@ -25,10 +25,12 @@ pub async fn serve(
 ) -> anyhow::Result<()> {
     auth_init(db_conn.clone()).await?;
     auth::token_expired_task(sled_db.clone()).await?;
+    let captcha_cache = auth::captcha_cache_init()?;
     let app_state = AppState {
         db_conn,
         sled_db,
         tx_heartbeat_rsp,
+        captcha_cache,
     };
     let dist_path = if Path::new("../ui_web/dist").exists() {
         // 工程目录

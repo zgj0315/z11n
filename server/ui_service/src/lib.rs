@@ -1,7 +1,8 @@
+use moka::sync::Cache;
 use sea_orm::DatabaseConnection;
 use tokio::sync::broadcast;
 
-use crate::z11n::HeartbeatRsp;
+use crate::{auth::CaptchaEntry, z11n::HeartbeatRsp};
 
 pub mod agent;
 pub mod auth;
@@ -19,4 +20,5 @@ pub struct AppState {
     pub db_conn: DatabaseConnection,
     pub sled_db: sled::Db,
     pub tx_heartbeat_rsp: broadcast::Sender<(String, HeartbeatRsp)>,
+    pub captcha_cache: Cache<String, CaptchaEntry>,
 }

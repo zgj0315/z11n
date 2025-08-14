@@ -1,16 +1,20 @@
-use std::{collections::HashSet, net::SocketAddr, ops::Deref};
+use std::{collections::HashSet, net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
 
 use axum::{
     Json, Router,
     extract::{ConnectInfo, FromRequestParts, Path, State},
     http::{Method, StatusCode, header, request::Parts},
     response::IntoResponse,
-    routing::post,
+    routing::{get, post},
 };
+use base64::{Engine, prelude::BASE64_STANDARD};
 use bincode::{Decode, Encode};
+use captcha::{Captcha, filters::Noise};
 use chrono::Utc;
 use entity::{tbl_auth_role, tbl_auth_user, tbl_auth_user_role};
+use moka::{notification::RemovalCause, sync::Cache};
 use once_cell::sync::Lazy;
+use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs1::EncodeRsaPublicKey};
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QuerySelect,
@@ -37,16 +41,6 @@ pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
             method: "DELETE".to_string(),
             path: "/api/agents/".to_string(),
             name: "Agent删除".to_string(),
-        },
-        RestfulApi {
-            method: "POST".to_string(),
-            path: "/api/login".to_string(),
-            name: "登录".to_string(),
-        },
-        RestfulApi {
-            method: "POST".to_string(),
-            path: "/api/logout".to_string(),
-            name: "退出".to_string(),
         },
         RestfulApi {
             method: "GET".to_string(),
@@ -150,17 +144,57 @@ pub fn routers(state: AppState) -> Router {
     Router::new()
         .route("/login", post(login))
         .route("/logout/{token}", post(logout))
+        .route("/captcha", get(generate_captcha))
         .with_state(state)
 }
 #[derive(Deserialize, Debug, Validate)]
 struct LoginInputDto {
     username: String,
     password: String,
+    uuid: String,
+    captcha: String,
 }
 async fn login(
     app_state: State<AppState>,
     Json(login_input_dto): Json<LoginInputDto>,
 ) -> impl IntoResponse {
+    let private_key = match app_state.captcha_cache.get(&login_input_dto.uuid) {
+        Some(v) => {
+            if !login_input_dto.captcha.eq(&v.captcha) {
+                log::warn!(
+                    "captcha not match {} vs {}",
+                    login_input_dto.captcha,
+                    v.captcha
+                );
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+            v.private_key
+        }
+        None => {
+            log::warn!("uuid exist {}", login_input_dto.uuid);
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    };
+    let encrypted_bytes = match BASE64_STANDARD.decode(login_input_dto.password) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("BASE64_STANDARD.decode err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+    let password = match private_key.decrypt(Pkcs1v15Encrypt, &encrypted_bytes) {
+        Ok(v) => match String::from_utf8(v) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("String::from_utf8 err: {}", e);
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
+        },
+        Err(e) => {
+            log::error!("private_key.decrypt err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
     match tbl_auth_user::Entity::find()
         .filter(tbl_auth_user::Column::Username.eq(&login_input_dto.username))
         .one(&app_state.db_conn)
@@ -168,7 +202,7 @@ async fn login(
     {
         Ok(tbl_auth_user_op) => match tbl_auth_user_op {
             Some(tbl_auth_user) => {
-                if tbl_auth_user.password.eq(&login_input_dto.password) {
+                if tbl_auth_user.password.eq(&password) {
                     let role_ids = match tbl_auth_user_role::Entity::find()
                         .select_only()
                         .column(tbl_auth_user_role::Column::RoleId)
@@ -283,10 +317,8 @@ async fn logout(Path(token): Path<String>, app_state: State<AppState>) -> impl I
 static WHITE_API_SET: Lazy<HashSet<(Method, &'static str)>> = Lazy::new(|| {
     HashSet::from([
         (Method::POST, "/api/login"),
-        // (Method::GET, "/api/agents"),
-        // (Method::GET, "/api/hosts"),
-        // (Method::POST, "/api/hosts"),
-        // (Method::GET, "/api/llm_tasks"),
+        (Method::POST, "/api/logout"),
+        (Method::GET, "/api/captcha"),
     ])
 });
 pub struct RequireAuth;
@@ -594,4 +626,75 @@ pub async fn auth_init(db_conn: sea_orm::DatabaseConnection) -> anyhow::Result<(
             .await?;
     }
     Ok(())
+}
+
+pub fn captcha_cache_init() -> anyhow::Result<Cache<String, CaptchaEntry>> {
+    let eviction_listener =
+        move |uuid: Arc<String>, _captcha_entry: CaptchaEntry, removal_cause| match removal_cause {
+            RemovalCause::Expired => {
+                log::info!("Expired: {uuid}");
+            }
+            RemovalCause::Explicit => {
+                log::info!("Explicit: {uuid}");
+            }
+            RemovalCause::Replaced => {
+                log::info!("Replaced: {uuid}");
+            }
+            RemovalCause::Size => {
+                log::info!("Size: {uuid}");
+            }
+        };
+    let cache = Cache::builder()
+        .max_capacity(50_000)
+        .time_to_live(Duration::from_secs(60 * 10))
+        .eviction_listener(eviction_listener)
+        .build();
+    Ok(cache)
+}
+
+#[derive(Clone)]
+pub struct CaptchaEntry {
+    captcha: String,
+    private_key: RsaPrivateKey,
+}
+
+async fn generate_captcha(app_state: State<AppState>) -> impl IntoResponse {
+    let mut rng_captcha = Captcha::new();
+    rng_captcha
+        .set_chars(&['1', '2', '3', '4', '5', '6', '7', '8', '9'])
+        .add_chars(5)
+        .apply_filter(Noise::new(0.3))
+        .view(200, 80);
+
+    let base64_captcha = match rng_captcha.as_base64() {
+        Some(v) => v,
+        None => {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+    let mut rng = rand::thread_rng(); // rand@0.8
+    let private_key = RsaPrivateKey::new(&mut rng, 2048).expect("failed to generate a key");
+    let public_key = RsaPublicKey::from(&private_key);
+    let public_key = match public_key.to_pkcs1_pem(Default::default()) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("public_key.to_pkcs1_pem err: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+    let uuid = uuid::Uuid::new_v4().to_string();
+    let captcha_entry = CaptchaEntry {
+        captcha: rng_captcha.chars_as_string(),
+        private_key,
+    };
+    app_state.captcha_cache.insert(uuid.clone(), captcha_entry);
+    (
+        StatusCode::OK,
+        Json(json!({
+            "uuid":uuid,
+            "base64_captcha":base64_captcha,
+            "public_key":public_key
+        })),
+    )
+        .into_response()
 }

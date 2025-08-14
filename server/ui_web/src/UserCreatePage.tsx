@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Form, Input, Button, Checkbox, message, Spin } from "antd";
 import { useNavigate } from "react-router-dom";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 
 interface Role {
   id: number;

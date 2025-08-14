@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Button, Form, Input, message, Table, Popconfirm, Space } from "antd";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import { hasPermission } from "./utils/permission";

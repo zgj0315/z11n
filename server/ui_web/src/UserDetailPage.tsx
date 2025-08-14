@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Descriptions, Spin, Transfer, List, Tag, Typography } from "antd";
 import type { DescriptionsProps, TransferProps } from "antd";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 
 interface ApiRecord {
   key: string;
@@ -83,8 +83,8 @@ const App: React.FC = () => {
         const ownedKeysSet = new Set<string>();
         setRoles(data.roles);
         console.log("roles: ", roles);
-        data.roles.forEach((role) => {
-          role.restful_apis.forEach((restful_api) => {
+        data.roles.forEach((role: Role) => {
+          role.restful_apis.forEach((restful_api: RestfulApi) => {
             const key = `${restful_api.method}-${restful_api.path}`;
             if (!apiMap.has(key)) {
               apiMap.set(key, {

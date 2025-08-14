@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Form, Input, Button, Checkbox, message, Spin } from "antd";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 
 interface Role {
   id: number;
@@ -12,6 +12,11 @@ interface UserData {
   id: number;
   username: string;
   roles: Role[];
+}
+interface UserFormValues {
+  username: string;
+  password: string;
+  role_ids: number[];
 }
 
 const UserEdit: React.FC = () => {
@@ -48,7 +53,7 @@ const UserEdit: React.FC = () => {
       });
   }, [id, form]);
 
-  const onFinish = (values: unknown) => {
+  const onFinish = (values: UserFormValues) => {
     setSubmitting(true);
     restful_api
       .patch(`/api/users/${id}`, {

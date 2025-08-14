@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Input, Spin, Transfer, message, Button, Form } from "antd";
 import type { TransferProps } from "antd";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 
 interface RestfulApi {
   method: string;
@@ -38,7 +38,7 @@ const App: React.FC = () => {
     console.log("targetKeys:", nextTargetKeys);
     console.log("direction:", direction);
     console.log("moveKeys:", moveKeys);
-    setTargetKeys(nextTargetKeys);
+    setTargetKeys(nextTargetKeys as string[]);
   };
   const onSelectChange: TransferProps["onSelectChange"] = (
     sourceSelectedKeys,
@@ -46,7 +46,10 @@ const App: React.FC = () => {
   ) => {
     console.log("sourceSelectedKeys:", sourceSelectedKeys);
     console.log("targetSelectedKeys:", targetSelectedKeys);
-    setSelectedKeys([...sourceSelectedKeys, ...targetSelectedKeys]);
+    setSelectedKeys([
+      ...sourceSelectedKeys.map(String),
+      ...targetSelectedKeys.map(String),
+    ]);
   };
 
   const onScroll: TransferProps["onScroll"] = (direction, e) => {
@@ -145,6 +148,7 @@ const App: React.FC = () => {
         selectedKeys={selectedKeys}
         onChange={onChange}
         onSelectChange={onSelectChange}
+        onScroll={onScroll}
         render={(item) => (
           <>
             <b>{item.title}</b>

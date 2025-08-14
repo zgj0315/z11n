@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Descriptions, Spin } from "antd";
 import type { DescriptionsProps } from "antd";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 
 function jsonToDescriptionsItems(obj: Record<string, unknown>) {
   return Object.entries(obj)

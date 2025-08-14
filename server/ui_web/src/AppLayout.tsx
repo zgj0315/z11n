@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { UserOutlined } from "@ant-design/icons";
-import { Layout, Menu, theme, Button, Breadcrumb } from "antd";
+import { Layout, Menu, theme, Button, Breadcrumb, type MenuProps } from "antd";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 import { hasPermission } from "./utils/permission";
 
 const { Header, Content, Footer, Sider } = Layout;
@@ -47,8 +47,15 @@ const App: React.FC = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  const menuItems = useMemo(
-    () => menuConfig.filter((item) => hasPermission(...item.perm)),
+  const menuItems: MenuProps["items"] = useMemo(
+    () =>
+      menuConfig
+        .filter((item) => hasPermission(item.perm[0], item.perm[1]))
+        .map(({ key, icon, label }) => ({
+          key,
+          icon,
+          label,
+        })),
     []
   );
 

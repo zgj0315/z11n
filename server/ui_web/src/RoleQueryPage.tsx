@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button, Form, Input, message, Table, Popconfirm } from "antd";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 import { useNavigate, Link } from "react-router-dom";
 import { hasPermission } from "./utils/permission";
 import type { RestfulApi } from "./types/restfulApi";
@@ -24,7 +24,6 @@ const App: React.FC = () => {
   const [current, setCurrent] = useState(1);
   const [page_size, setPageSize] = useState(5);
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   const handleQuery = async (
     page = current,
@@ -120,8 +119,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!roles.length) {
-      const token = localStorage.getItem("token");
-      setIsLoggedIn(!!token);
       handleQuery();
     }
   }, []);
