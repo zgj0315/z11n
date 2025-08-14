@@ -24,6 +24,9 @@ const App: React.FC = () => {
       const { token } = response.data;
       console.log("token: ", token);
       localStorage.setItem("token", token);
+      const { restful_apis } = response.data;
+      console.log("restful_apis: ", restful_apis);
+      localStorage.setItem("restful_apis", JSON.stringify(restful_apis));
       message.success("Login successful!");
       navigate("/");
     } catch (error: unknown) {

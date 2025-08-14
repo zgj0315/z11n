@@ -5,7 +5,26 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import restful_api from "./RESTfulApi.tsx";
 
 const { Header, Content, Footer, Sider } = Layout;
+interface RestfulApi {
+  method: string;
+  path: string;
+  name: string;
+}
 
+function hasPermission(method: string, path: string) {
+  try {
+    const restful_apis = JSON.parse(
+      localStorage.getItem("restful_apis") || "[]"
+    );
+    return restful_apis.some(
+      (restful_api: RestfulApi) =>
+        restful_api.method.toUpperCase() === method.toUpperCase() &&
+        restful_api.path === path
+    );
+  } catch {
+    return false;
+  }
+}
 const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -15,45 +34,32 @@ const App: React.FC = () => {
   } = theme.useToken();
 
   const menuItems = [
-    {
+    hasPermission("GET", "/api/agents") && {
       key: "/agents",
       icon: <UserOutlined />,
       label: "Agent管理",
     },
-    {
+    hasPermission("GET", "/api/hosts") && {
       key: "/hosts",
       icon: <UserOutlined />,
       label: "主机管理",
     },
-    {
+    hasPermission("GET", "/api/llm_tasks") && {
       key: "/llm_tasks",
       icon: <UserOutlined />,
       label: "任务管理",
     },
-    {
+    hasPermission("GET", "/api/roles") && {
       key: "/roles",
       icon: <UserOutlined />,
       label: "角色管理",
     },
-    {
+    hasPermission("GET", "/api/users") && {
       key: "/users",
       icon: <UserOutlined />,
       label: "用户管理",
     },
   ];
-  const isLoggedIn = !!localStorage.getItem("token");
-  if (isLoggedIn) {
-    // menuItems.push({
-    //   key: "/pdf_article_access_logs",
-    //   icon: <VideoCameraOutlined />,
-    //   label: "浏览记录",
-    // });
-    // menuItems.push({
-    //   key: "/logs",
-    //   icon: <VideoCameraOutlined />,
-    //   label: "操作日志",
-    // });
-  }
   return (
     <Layout>
       <Header style={{ display: "flex", alignItems: "center" }}>
