@@ -149,11 +149,26 @@ pub fn routers(state: AppState) -> Router {
 struct LoginInputDto {
     username: String,
     password: String,
+    uuid: String,
+    captcha: String,
 }
 async fn login(
     app_state: State<AppState>,
     Json(login_input_dto): Json<LoginInputDto>,
 ) -> impl IntoResponse {
+    match app_state.captcha_cache.get(&login_input_dto.uuid) {
+        Some(v) => {
+            if !login_input_dto.captcha.eq(&v) {
+                log::warn!("captcha not match {} vs {}", login_input_dto.captcha, v);
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+        }
+        None => {
+            log::warn!("uuid exist {}", login_input_dto.uuid);
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    }
+
     match tbl_auth_user::Entity::find()
         .filter(tbl_auth_user::Column::Username.eq(&login_input_dto.username))
         .one(&app_state.db_conn)
