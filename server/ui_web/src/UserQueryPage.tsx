@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Button, Form, Input, message, Table, Popconfirm } from "antd";
 import { useNavigate, Link } from "react-router-dom";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 import { hasPermission } from "./utils/permission";
 
 interface User {

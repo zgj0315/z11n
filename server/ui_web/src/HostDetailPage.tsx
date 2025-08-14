@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Descriptions, Spin, Tabs, Table } from "antd";
 import type { DescriptionsProps, TabsProps, TableProps } from "antd";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 
 interface ProcessType {
   pid: number;

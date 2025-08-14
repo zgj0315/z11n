@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Transfer, message, Input, Button } from "antd";
 import type { TransferProps } from "antd";
-import restful_api from "./RESTfulApi.tsx";
+import restful_api from "./utils/restful_api.ts";
 import { useNavigate } from "react-router-dom";
+import type { RestfulApi } from "./types/restfulApi.ts";
 
 interface ApiRecord {
   key: string;
@@ -20,15 +21,17 @@ const App: React.FC = () => {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [roleName, setRoleName] = useState("");
 
-  const onChange = (nextTargetKeys: string[]) => {
-    setTargetKeys(nextTargetKeys);
+  const onChange: TransferProps<ApiRecord>["onChange"] = (nextTargetKeys) => {
+    setTargetKeys(nextTargetKeys as string[]);
   };
-
-  const onSelectChange = (
-    sourceSelectedKeys: string[],
-    targetSelectedKeys: string[]
+  const onSelectChange: TransferProps<ApiRecord>["onSelectChange"] = (
+    sourceSelectedKeys,
+    targetSelectedKeys
   ) => {
-    setSelectedKeys([...sourceSelectedKeys, ...targetSelectedKeys]);
+    setSelectedKeys([
+      ...sourceSelectedKeys.map(String),
+      ...targetSelectedKeys.map(String),
+    ]);
   };
   const onScroll: TransferProps["onScroll"] = (direction, e) => {
     console.log("direction:", direction);
@@ -83,7 +86,7 @@ const App: React.FC = () => {
     restful_api
       .get(`/api/restful_apis`)
       .then((res) => {
-        const transferData: ApiRecord[] = res.data.map((api: any) => ({
+        const transferData: ApiRecord[] = res.data.map((api: RestfulApi) => ({
           key: `${api.method}-${api.path}`.trim(),
           title: api.name,
           description: `${api.method} ${api.path}`,
