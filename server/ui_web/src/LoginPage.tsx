@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [captchaImg, setCaptchaImg] = useState<string>("");
   const [captchaUuid, setCaptchaUuid] = useState<string>("");
   const [publicKey, setPublicKey] = useState<string>("");
+  const [logo, setLogo] = useState("/android-chrome-512x512.png");
 
   // 获取验证码
   const getCaptcha = async () => {
@@ -66,6 +67,14 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    restful_api
+      .get<{ base64_logo: string }>("/api/system/logo")
+      .then((rsp) => {
+        if (rsp.data.base64_logo) {
+          setLogo(`data:image/png;base64,${rsp.data.base64_logo}`);
+        }
+      })
+      .catch(console.error);
     getCaptcha();
   }, []);
 
@@ -89,11 +98,7 @@ const App: React.FC = () => {
       >
         {/* Logo + 系统标题 */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <img
-            src="/android-chrome-512x512.png"
-            alt="logo"
-            style={{ width: 60, marginBottom: 12 }}
-          />
+          <img src={logo} alt="Logo" style={{ width: 60, marginBottom: 12 }} />
           <h2 style={{ margin: 0 }}>管理系统登录</h2>
         </div>
 

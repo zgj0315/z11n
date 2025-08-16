@@ -38,6 +38,12 @@ const menuConfig = [
     label: "用户管理",
     perm: ["GET", "/api/users"],
   },
+  {
+    key: "/system",
+    icon: <UserOutlined />,
+    label: "系统设置",
+    perm: ["GET", "/api/system"],
+  },
 ];
 const App: React.FC = () => {
   const navigate = useNavigate();

@@ -141,7 +141,7 @@ async fn get_icon(State(app_state): State<AppState>) -> impl IntoResponse {
         Err(e) => {
             log::error!(
                 "find tbl_system_config {} db err: {}",
-                ConfigKey::Title.to_string(),
+                ConfigKey::Icon.to_string(),
                 e
             );
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -199,7 +199,7 @@ async fn update_icon(
                     }
                     None => {
                         let tbl_system_config_am = tbl_system_config::ActiveModel {
-                            key: Set(ConfigKey::Title.to_string()),
+                            key: Set(ConfigKey::Icon.to_string()),
                             value: Set(content_bytes),
                         };
                         match tbl_system_config::Entity::insert(tbl_system_config_am)
@@ -237,7 +237,7 @@ async fn get_logo(State(app_state): State<AppState>) -> impl IntoResponse {
             Some(tbl_system_config) => (
                 StatusCode::OK,
                 Json(json!({
-                    "base64_icon":BASE64_STANDARD.encode(tbl_system_config.value),
+                    "base64_logo":BASE64_STANDARD.encode(tbl_system_config.value),
                 })),
             )
                 .into_response(),
@@ -246,7 +246,7 @@ async fn get_logo(State(app_state): State<AppState>) -> impl IntoResponse {
         Err(e) => {
             log::error!(
                 "find tbl_system_config {} db err: {}",
-                ConfigKey::Title.to_string(),
+                ConfigKey::Logo.to_string(),
                 e
             );
             StatusCode::INTERNAL_SERVER_ERROR.into_response()

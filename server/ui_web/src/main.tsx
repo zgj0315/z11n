@@ -16,6 +16,7 @@ import UserQueryPage from "./UserQueryPage.tsx";
 import UserDetailPage from "./UserDetailPage.tsx";
 import UserCreatePage from "./UserCreatePage.tsx";
 import UserModifyPage from "./UserModifyPage.tsx";
+import SystemPage from "./SystemPage.tsx";
 import restful_api from "./utils/restful_api.ts";
 
 async function init() {
@@ -64,6 +65,7 @@ async function init() {
           <Route path="users/create" element={<UserCreatePage />} />
           <Route path="users/modify/:id" element={<UserModifyPage />} />
           <Route path="users/:id" element={<UserDetailPage />} />
+          <Route path="system" element={<SystemPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

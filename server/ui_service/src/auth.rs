@@ -142,6 +142,16 @@ pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
             path: "/api/system/icon".to_string(),
             name: "标题更新".to_string(),
         },
+        RestfulApi {
+            method: "POST".to_string(),
+            path: "/api/system/logo".to_string(),
+            name: "Logo更新".to_string(),
+        },
+        RestfulApi {
+            method: "GET".to_string(),
+            path: "/api/system".to_string(),
+            name: "系统设置".to_string(),
+        },
     ]
 });
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, Clone)]
