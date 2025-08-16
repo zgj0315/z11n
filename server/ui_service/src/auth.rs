@@ -677,7 +677,7 @@ async fn generate_captcha(app_state: State<AppState>) -> impl IntoResponse {
         .set_chars(&['1', '2', '3', '4', '5', '6', '7', '8', '9'])
         .add_chars(5)
         .apply_filter(Noise::new(0.3))
-        .view(200, 80);
+        .view(180, 60);
 
     let base64_captcha = match rng_captcha.as_base64() {
         Some(v) => v,

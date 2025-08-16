@@ -89,14 +89,44 @@ const App: React.FC = () => {
   }, []);
   return (
     <Layout>
-      <Header style={{ display: "flex", alignItems: "center" }}>
-        <div className="demo-logo" />
+      <Header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 24px",
+          background: "linear-gradient(90deg, #001529 0%, #002140 100%)",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+        }}
+      >
+        {/* 左侧 Logo + 标题 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img
+            src="/android-chrome-512x512.png"
+            alt="Logo"
+            style={{ height: 36, borderRadius: 6 }}
+          />
+          <span style={{ fontSize: 20, fontWeight: 600, color: "#fff" }}>
+            管理系统
+          </span>
+        </div>
+
+        {/* 右侧 用户名 + 退出按钮 */}
         {localStorage.getItem("token") && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontWeight: "bold", color: "#fff" }}>
-              {username}
-            </span>
-            <Button type="link" onClick={handleLogout}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <UserOutlined style={{ color: "#fff", fontSize: 18 }} />
+              <span style={{ fontWeight: "bold", color: "#fff" }}>
+                {username}
+              </span>
+            </div>
+            <Button
+              type="primary"
+              danger
+              size="small"
+              onClick={handleLogout}
+              style={{ borderRadius: 6 }}
+            >
               Logout
             </Button>
           </div>

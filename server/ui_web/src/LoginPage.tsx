@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { FormProps } from "antd";
-import { Button, Form, Input, message, Row, Col } from "antd";
+import { Button, Form, Input, message, Card } from "antd";
 import axios from "axios";
 import restful_api from "./utils/restful_api.ts";
 import { useNavigate } from "react-router-dom";
@@ -14,10 +14,11 @@ type FieldType = {
 
 const App: React.FC = () => {
   const navigate = useNavigate();
-  const [captchaImg, setCaptchaImg] = useState<string>(""); // 存 base64 验证码图片
-  const [captchaUuid, setCaptchaUuid] = useState<string>(""); // 存 uuid
+  const [captchaImg, setCaptchaImg] = useState<string>("");
+  const [captchaUuid, setCaptchaUuid] = useState<string>("");
   const [publicKey, setPublicKey] = useState<string>("");
 
+  // 获取验证码
   const getCaptcha = async () => {
     try {
       const rsp = await restful_api.get("/api/captcha");
@@ -31,6 +32,7 @@ const App: React.FC = () => {
     }
   };
 
+  // 登录提交
   const onFinish: FormProps<FieldType>["onFinish"] = async (values) => {
     if (!publicKey) {
       message.error("公钥未加载，无法加密密码");
@@ -47,26 +49,20 @@ const App: React.FC = () => {
       const response = await axios.post("/api/login", {
         username: values.username,
         password: encryptedPassword,
-        uuid: captchaUuid, // 传验证码对应的uuid
-        captcha: values.captcha, // 用户输入的验证码
+        uuid: captchaUuid,
+        captcha: values.captcha,
       });
       localStorage.setItem("username", String(values.username));
       const { token, restful_apis } = response.data;
       localStorage.setItem("token", token);
       localStorage.setItem("restful_apis", JSON.stringify(restful_apis));
-      message.success("Login successful!");
+      message.success("登录成功！");
       navigate("/");
     } catch (error: unknown) {
       console.error("Login failed:", error);
-      message.error("Login failed. Please check your credentials.");
-      getCaptcha(); // 登录失败后刷新验证码
+      message.error("登录失败，请检查账号、密码或验证码");
+      getCaptcha();
     }
-  };
-
-  const onFinishFailed: FormProps<FieldType>["onFinishFailed"] = (
-    errorInfo
-  ) => {
-    console.log("Failed:", errorInfo);
   };
 
   useEffect(() => {
@@ -74,57 +70,100 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <Form
-      name="basic"
-      labelCol={{ span: 8 }}
-      wrapperCol={{ span: 16 }}
-      style={{ maxWidth: 600 }}
-      onFinish={onFinish}
-      onFinishFailed={onFinishFailed}
-      autoComplete="off"
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #f0f2f5 0%, #e6f7ff 100%)",
+      }}
     >
-      <Form.Item<FieldType>
-        label="Username"
-        name="username"
-        rules={[{ required: true, message: "Please input your username!" }]}
+      <Card
+        style={{
+          width: 400,
+          padding: "24px 12px",
+          borderRadius: 12,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+        }}
       >
-        <Input />
-      </Form.Item>
+        {/* Logo + 系统标题 */}
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <img
+            src="/android-chrome-512x512.png"
+            alt="logo"
+            style={{ width: 60, marginBottom: 12 }}
+          />
+          <h2 style={{ margin: 0 }}>管理系统登录</h2>
+        </div>
 
-      <Form.Item<FieldType>
-        label="Password"
-        name="password"
-        rules={[{ required: true, message: "Please input your password!" }]}
-      >
-        <Input.Password />
-      </Form.Item>
+        <Form
+          name="login"
+          size="large" // 控件统一大尺寸
+          onFinish={onFinish}
+          autoComplete="off"
+          layout="vertical"
+        >
+          <Form.Item<FieldType>
+            label="用户名"
+            name="username"
+            rules={[{ required: true, message: "请输入用户名" }]}
+          >
+            <Input placeholder="请输入用户名" />
+          </Form.Item>
 
-      <Form.Item<FieldType>
-        label="Captcha"
-        name="captcha"
-        rules={[{ required: true, message: "Please input captcha!" }]}
-      >
-        <Row gutter={8}>
-          <Col span={12}>
-            <Input placeholder="Enter captcha" />
-          </Col>
-          <Col span={12}>
-            <img
-              src={captchaImg}
-              alt="captcha"
-              style={{ cursor: "pointer", height: 32 }}
-              onClick={getCaptcha} // 点击刷新验证码
-            />
-          </Col>
-        </Row>
-      </Form.Item>
+          <Form.Item<FieldType>
+            label="密码"
+            name="password"
+            rules={[{ required: true, message: "请输入密码" }]}
+          >
+            <Input.Password placeholder="请输入密码" />
+          </Form.Item>
 
-      <Form.Item wrapperCol={{ offset: 8 }}>
-        <Button type="primary" htmlType="submit">
-          Submit
-        </Button>
-      </Form.Item>
-    </Form>
+          <Form.Item<FieldType>
+            label="验证码"
+            name="captcha"
+            rules={[{ required: true, message: "请输入验证码" }]}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Input
+                placeholder="请输入验证码"
+                style={{ flex: 1, height: 40 }}
+                maxLength={6}
+              />
+              <img
+                src={captchaImg}
+                alt="captcha"
+                title="点击刷新验证码"
+                onClick={getCaptcha}
+                draggable={false}
+                style={{
+                  width: 120,
+                  height: 40,
+                  objectFit: "contain",
+                  cursor: "pointer",
+                  borderRadius: 6,
+                  border: "1px solid #d9d9d9",
+                  background: "#fff",
+                  userSelect: "none",
+                }}
+              />
+            </div>
+          </Form.Item>
+
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              style={{ borderRadius: 6 }}
+            >
+              登录
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+    </div>
   );
 };
 
