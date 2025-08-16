@@ -46,6 +46,7 @@ const App: React.FC = () => {
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+  const [logo, setLogo] = useState("/android-chrome-512x512.png");
 
   const menuItems: MenuProps["items"] = useMemo(
     () =>
@@ -86,6 +87,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const username = localStorage.getItem("username");
     if (username) setUsername(username);
+    restful_api
+      .get<{ base64_logo: string }>("/api/system/logo")
+      .then((rsp) => {
+        if (rsp.data.base64_logo) {
+          setLogo(`data:image/png;base64,${rsp.data.base64_logo}`);
+        }
+      })
+      .catch(console.error);
   }, []);
   return (
     <Layout>
@@ -101,11 +110,7 @@ const App: React.FC = () => {
       >
         {/* 左侧 Logo + 标题 */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <img
-            src="/android-chrome-512x512.png"
-            alt="Logo"
-            style={{ height: 36, borderRadius: 6 }}
-          />
+          <img src={logo} alt="Logo" style={{ height: 36, borderRadius: 6 }} />
           <span style={{ fontSize: 20, fontWeight: 600, color: "#fff" }}>
             管理系统
           </span>
