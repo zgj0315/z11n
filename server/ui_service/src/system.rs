@@ -35,7 +35,7 @@ enum ConfigKey {
 
 async fn get_title(State(app_state): State<AppState>) -> impl IntoResponse {
     match tbl_system_config::Entity::find()
-        .filter(tbl_system_config::Column::Key.eq(&ConfigKey::Title.to_string()))
+        .filter(tbl_system_config::Column::Key.eq(ConfigKey::Title.to_string()))
         .one(&app_state.db_conn)
         .await
     {
@@ -61,7 +61,7 @@ async fn get_title(State(app_state): State<AppState>) -> impl IntoResponse {
         Err(e) => {
             log::error!(
                 "find tbl_system_config {} db err: {}",
-                ConfigKey::Title.to_string(),
+                ConfigKey::Title,
                 e
             );
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -78,7 +78,7 @@ async fn update_title(
     Json(input): Json<TitleUpdateInputDto>,
 ) -> impl IntoResponse {
     match tbl_system_config::Entity::find()
-        .filter(tbl_system_config::Column::Key.eq(&ConfigKey::Title.to_string()))
+        .filter(tbl_system_config::Column::Key.eq(ConfigKey::Title.to_string()))
         .one(&app_state.db_conn)
         .await
     {
@@ -88,11 +88,11 @@ async fn update_title(
                 tbl_system_config_am.value = Set(input.title.as_bytes().to_vec());
                 match tbl_system_config_am.save(&app_state.db_conn).await {
                     Ok(_) => {
-                        return StatusCode::OK.into_response();
+                        StatusCode::OK.into_response()
                     }
                     Err(e) => {
                         log::error!("tbl_system_config save err: {}", e);
-                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                        StatusCode::INTERNAL_SERVER_ERROR.into_response()
                     }
                 }
             }
@@ -106,25 +106,25 @@ async fn update_title(
                     .await
                 {
                     Ok(_) => {
-                        return StatusCode::OK.into_response();
+                        StatusCode::OK.into_response()
                     }
                     Err(e) => {
                         log::error!("tbl_system_config insert err: {}", e);
-                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                        StatusCode::INTERNAL_SERVER_ERROR.into_response()
                     }
                 }
             }
         },
         Err(e) => {
             log::error!("tbl_system_config find err: {}", e);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
 
 async fn get_icon(State(app_state): State<AppState>) -> impl IntoResponse {
     match tbl_system_config::Entity::find()
-        .filter(tbl_system_config::Column::Key.eq(&ConfigKey::Icon.to_string()))
+        .filter(tbl_system_config::Column::Key.eq(ConfigKey::Icon.to_string()))
         .one(&app_state.db_conn)
         .await
     {
@@ -141,7 +141,7 @@ async fn get_icon(State(app_state): State<AppState>) -> impl IntoResponse {
         Err(e) => {
             log::error!(
                 "find tbl_system_config {} db err: {}",
-                ConfigKey::Icon.to_string(),
+                ConfigKey::Icon,
                 e
             );
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -179,7 +179,7 @@ async fn update_icon(
                 }
             };
             match tbl_system_config::Entity::find()
-                .filter(tbl_system_config::Column::Key.eq(&ConfigKey::Icon.to_string()))
+                .filter(tbl_system_config::Column::Key.eq(ConfigKey::Icon.to_string()))
                 .one(&app_state.db_conn)
                 .await
             {
@@ -229,7 +229,7 @@ async fn update_icon(
 
 async fn get_logo(State(app_state): State<AppState>) -> impl IntoResponse {
     match tbl_system_config::Entity::find()
-        .filter(tbl_system_config::Column::Key.eq(&ConfigKey::Logo.to_string()))
+        .filter(tbl_system_config::Column::Key.eq(ConfigKey::Logo.to_string()))
         .one(&app_state.db_conn)
         .await
     {
@@ -246,7 +246,7 @@ async fn get_logo(State(app_state): State<AppState>) -> impl IntoResponse {
         Err(e) => {
             log::error!(
                 "find tbl_system_config {} db err: {}",
-                ConfigKey::Logo.to_string(),
+                ConfigKey::Logo,
                 e
             );
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -284,7 +284,7 @@ async fn update_logo(
                 }
             };
             match tbl_system_config::Entity::find()
-                .filter(tbl_system_config::Column::Key.eq(&ConfigKey::Logo.to_string()))
+                .filter(tbl_system_config::Column::Key.eq(ConfigKey::Logo.to_string()))
                 .one(&app_state.db_conn)
                 .await
             {
