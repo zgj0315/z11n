@@ -38,6 +38,12 @@ const menuConfig = [
     label: "用户管理",
     perm: ["GET", "/api/users"],
   },
+  {
+    key: "/system",
+    icon: <UserOutlined />,
+    label: "系统设置",
+    perm: ["GET", "/api/system"],
+  },
 ];
 const App: React.FC = () => {
   const navigate = useNavigate();
@@ -46,6 +52,7 @@ const App: React.FC = () => {
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+  const [logo, setLogo] = useState("/android-chrome-512x512.png");
 
   const menuItems: MenuProps["items"] = useMemo(
     () =>
@@ -86,17 +93,51 @@ const App: React.FC = () => {
   useEffect(() => {
     const username = localStorage.getItem("username");
     if (username) setUsername(username);
+    restful_api
+      .get<{ base64_logo: string }>("/api/system/logo")
+      .then((rsp) => {
+        if (rsp.data.base64_logo) {
+          setLogo(`data:image/png;base64,${rsp.data.base64_logo}`);
+        }
+      })
+      .catch(console.error);
   }, []);
   return (
     <Layout>
-      <Header style={{ display: "flex", alignItems: "center" }}>
-        <div className="demo-logo" />
+      <Header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 24px",
+          background: "linear-gradient(90deg, #001529 0%, #002140 100%)",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+        }}
+      >
+        {/* 左侧 Logo + 标题 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img src={logo} alt="Logo" style={{ height: 36, borderRadius: 6 }} />
+          <span style={{ fontSize: 20, fontWeight: 600, color: "#fff" }}>
+            管理系统
+          </span>
+        </div>
+
+        {/* 右侧 用户名 + 退出按钮 */}
         {localStorage.getItem("token") && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontWeight: "bold", color: "#fff" }}>
-              {username}
-            </span>
-            <Button type="link" onClick={handleLogout}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <UserOutlined style={{ color: "#fff", fontSize: 18 }} />
+              <span style={{ fontWeight: "bold", color: "#fff" }}>
+                {username}
+              </span>
+            </div>
+            <Button
+              type="primary"
+              danger
+              size="small"
+              onClick={handleLogout}
+              style={{ borderRadius: 6 }}
+            >
               Logout
             </Button>
           </div>

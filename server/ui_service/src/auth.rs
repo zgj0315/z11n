@@ -142,6 +142,16 @@ pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
             path: "/api/system/icon".to_string(),
             name: "标题更新".to_string(),
         },
+        RestfulApi {
+            method: "POST".to_string(),
+            path: "/api/system/logo".to_string(),
+            name: "Logo更新".to_string(),
+        },
+        RestfulApi {
+            method: "GET".to_string(),
+            path: "/api/system".to_string(),
+            name: "系统设置".to_string(),
+        },
     ]
 });
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, Clone)]
@@ -677,7 +687,7 @@ async fn generate_captcha(app_state: State<AppState>) -> impl IntoResponse {
         .set_chars(&['1', '2', '3', '4', '5', '6', '7', '8', '9'])
         .add_chars(5)
         .apply_filter(Noise::new(0.3))
-        .view(200, 80);
+        .view(180, 60);
 
     let base64_captcha = match rng_captcha.as_base64() {
         Some(v) => v,
