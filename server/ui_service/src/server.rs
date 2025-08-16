@@ -14,7 +14,7 @@ use crate::{
     AppState, agent,
     auth::{self, RequireAuth, auth_init},
     config::UI_SERVICE_TOML,
-    host, llm_task, role, user,
+    host, llm_task, role, system, user,
     z11n::HeartbeatRsp,
 };
 
@@ -49,6 +49,7 @@ pub async fn serve(
         .nest("/api", user::routers(app_state.clone()))
         .nest("/api", host::routers(app_state.clone()))
         .nest("/api", llm_task::routers(app_state.clone()))
+        .nest("/api", system::routers(app_state.clone()))
         .layer(from_extractor_with_state::<RequireAuth, _>(Arc::new(
             app_state,
         )));

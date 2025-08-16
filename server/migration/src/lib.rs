@@ -6,6 +6,7 @@ mod m20250723_080947_create_tbl_host;
 mod m20250727_145621_create_tbl_llm_task;
 mod m20250807_152429_create_tbl_auth_role;
 mod m20250807_152654_create_tbl_auth_user_role;
+mod m20250815_020235_create_tbl_system_config;
 
 pub struct Migrator;
 
@@ -19,6 +20,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250727_145621_create_tbl_llm_task::Migration),
             Box::new(m20250807_152429_create_tbl_auth_role::Migration),
             Box::new(m20250807_152654_create_tbl_auth_user_role::Migration),
+            Box::new(m20250815_020235_create_tbl_system_config::Migration),
         ]
     }
 }

@@ -11,6 +11,7 @@ pub mod host;
 pub mod llm_task;
 pub mod role;
 pub mod server;
+pub mod system;
 pub mod uds;
 pub mod user;
 pub mod z11n;

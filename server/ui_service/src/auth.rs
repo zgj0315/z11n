@@ -132,6 +132,16 @@ pub static RESTFUL_APIS: Lazy<Vec<RestfulApi>> = Lazy::new(|| {
             path: "/api/restful_apis".to_string(),
             name: "接口列表".to_string(),
         },
+        RestfulApi {
+            method: "POST".to_string(),
+            path: "/api/system/title".to_string(),
+            name: "标题更新".to_string(),
+        },
+        RestfulApi {
+            method: "POST".to_string(),
+            path: "/api/system/icon".to_string(),
+            name: "标题更新".to_string(),
+        },
     ]
 });
 #[derive(Serialize, Deserialize, Encode, Decode, Debug, Clone)]
@@ -319,6 +329,9 @@ static WHITE_API_SET: Lazy<HashSet<(Method, &'static str)>> = Lazy::new(|| {
         (Method::POST, "/api/login"),
         (Method::POST, "/api/logout"),
         (Method::GET, "/api/captcha"),
+        (Method::GET, "/api/system/title"),
+        (Method::GET, "/api/system/icon"),
+        (Method::GET, "/api/system/logo"),
     ])
 });
 pub struct RequireAuth;
