@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
                     .table(TblAuthRole::Table)
                     .if_not_exists()
                     .col(pk_auto(TblAuthRole::Id))
-                    .col(string(TblAuthRole::Name))
+                    .col(string(TblAuthRole::Name).unique_key())
                     .col(binary(TblAuthRole::Apis))
                     .to_owned(),
             )

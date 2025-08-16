@@ -8,3 +8,4 @@ pub mod tbl_auth_user;
 pub mod tbl_auth_user_role;
 pub mod tbl_host;
 pub mod tbl_llm_task;
+pub mod tbl_system_config;

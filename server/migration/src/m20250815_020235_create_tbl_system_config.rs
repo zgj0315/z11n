@@ -9,12 +9,10 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(TblAuthUser::Table)
+                    .table(TblSystemConfig::Table)
                     .if_not_exists()
-                    .col(pk_auto(TblAuthUser::Id))
-                    .col(string(TblAuthUser::Username).unique_key())
-                    .col(string(TblAuthUser::Password))
-                    .col(date_time(TblAuthUser::CreatedAt).default(Expr::current_timestamp()))
+                    .col(string(TblSystemConfig::Key).primary_key())
+                    .col(binary(TblSystemConfig::Value))
                     .to_owned(),
             )
             .await
@@ -22,16 +20,14 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(TblAuthUser::Table).to_owned())
+            .drop_table(Table::drop().table(TblSystemConfig::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-pub enum TblAuthUser {
+enum TblSystemConfig {
     Table,
-    Id,
-    Username,
-    Password,
-    CreatedAt,
+    Key,
+    Value,
 }
