@@ -51,9 +51,6 @@ const App: React.FC = () => {
       } catch (error) {
         console.error("查询失败:", error);
         message.error("查询失败");
-        // if (!localStorage.getItem("token")) {
-        navigate("/login");
-        // }
       } finally {
         setLoading(false);
       }
